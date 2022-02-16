@@ -202,8 +202,8 @@ to uphill-chemical-v2  ;; turtle procedure
       [ rt 45 ] ] ]
   [ if scent-ahead-n > local-nest-scent
     [ ifelse scent-right > scent-left
-      [ rt 90 ]
-      [ lt 90 ] ] ]
+      [ lt 90 ]
+      [ rt 90 ] ] ]
 end
 
 ;; sniff left and right, and go where the strongest smell is
@@ -293,7 +293,7 @@ diffusion-rate
 diffusion-rate
 0.0
 99.0
-99.0
+25.0
 1.0
 1
 NIL
@@ -517,7 +517,7 @@ SWITCH
 320
 rng-food-size
 rng-food-size
-1
+0
 1
 -1000
 
