@@ -96,7 +96,9 @@ to go  ;; forever button
     ifelse color = red  ;; SM red ants have no food, green ants have food
     [ pick-food              ;; not carrying food? try to pick it up or look for it
       follow-pheromone ]
-    [ return-to-nest ]       ;; carrying food? take it back to nest
+    [ drop-food              ;; carrying food? take it back to nest while dropping pheromone
+      drop-pheromone
+      follow-nest ]
     random-walk
     ]
   diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
@@ -118,6 +120,23 @@ to go-for
     set episode-ticks lput last-episode-ticks episode-ticks
     set episode-end 0
     setup ]
+end
+
+to drop-food
+  if nest?
+  [ ;; drop food and head out again
+    set color red
+    rt 180 ]  ;; SM alias for <right>, to turn of X degrees
+end
+
+to drop-pheromone
+  if not nest?
+  [ set chemical chemical + chemical-droplet ]  ;; drop some chemical SM remember that turtles can access variables of patch they are in
+end
+
+to follow-nest
+  if not nest?
+  [ uphill-nest-scent ]         ;; head toward the greatest value of local-nest-scent
 end
 
 to return-to-nest  ;; turtle procedure
