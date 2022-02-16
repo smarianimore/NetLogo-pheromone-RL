@@ -94,10 +94,11 @@ to go  ;; forever button
   ask turtles
   [ if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
     ifelse color = red  ;; SM red ants have no food, green ants have food
-    [ look-for-food  ]       ;; not carrying food? look for it
+    [ pick-food              ;; not carrying food? try to pick it up or look for it
+      follow-pheromone ]
     [ return-to-nest ]       ;; carrying food? take it back to nest
-    wiggle
-    fd 1 ]  ;; SM alias for <forward> (move ahead 1 step)
+    random-walk
+    ]
   diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
   ask patches
   [ set chemical chemical * (100 - evaporation-rate) / 100  ;; slowly evaporate chemical
@@ -109,7 +110,7 @@ to go-for
   if (current-episode = iters)
   [ set episode-end 0
     set previous-episodes previous-episodes + iters
-    stop ]
+    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
   go
   if (episode-end = 1)
   [ set current-episode current-episode + 1
@@ -126,6 +127,19 @@ to return-to-nest  ;; turtle procedure
     rt 180 ]  ;; SM alias for <right>, to turn of X degrees
   [ set chemical chemical + chemical-droplet  ;; drop some chemical SM remember that turtles can access variables of patch they are in
     uphill-nest-scent ]         ;; head toward the greatest value of local-nest-scent
+end
+
+to pick-food
+  if food > 0
+  [ set color green          ;; pick up food
+    set food food - 1        ;; and reduce the food source
+    rt 180 ]                 ;; and turn around
+end
+
+;; go in the direction where the chemical smell is strongest
+to follow-pheromone
+  if (chemical >= chemical-threshold)  ;; SM the following seems to be empirically set to avoid ants following the pheromone trail AWAY from food; <and (chemical < 2)>. A better approach is to modify uphill-chemical to avoid following increasing nest scent
+  [ uphill-chemical-v2 ]
 end
 
 to look-for-food  ;; turtle procedure
@@ -184,10 +198,11 @@ to uphill-nest-scent  ;; turtle procedure
     [ lt 45 ] ]
 end
 
-to wiggle  ;; turtle procedure
+to random-walk  ;; turtle procedure
   rt random 45
   lt random 45
   if not can-move? 1 [ rt 180 ]  ;; SM Reports true if this turtle can move distance in the direction it is facing without violating the topology (wrapping is set via interface settings)
+  fd 1  ;; SM alias for <forward> (move ahead 1 step)
 end
 
 to-report nest-scent-at-angle [angle]
@@ -259,7 +274,7 @@ diffusion-rate
 diffusion-rate
 0.0
 99.0
-25.0
+99.0
 1.0
 1
 NIL
@@ -460,7 +475,7 @@ INPUTBOX
 155
 475
 iters
-3.0
+2.0
 1
 0
 Number
@@ -483,7 +498,7 @@ SWITCH
 320
 rng-food-size
 rng-food-size
-0
+1
 1
 -1000
 
