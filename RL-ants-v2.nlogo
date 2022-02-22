@@ -19,6 +19,7 @@ patches-own [  ;; SM defines the variables that all patches can use. Can also be
 turtles-own [
   isFoodPatch
   hasNotFood
+  lastAction
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -62,8 +63,10 @@ to setup
 end
 
 to-report rewardFunc
-  set reward-list lput [reward] of patch-here reward-list
-  report [reward] of patch-here
+  ;;set reward-list lput [reward] of patch-here reward-list
+  ifelse isFoodPatch and not hasNotFood and lastAction = "pick-food"  ;; SM isFoodPatch could return 0 because the ant took the food....
+  [ report 10 ]
+  [ report -1 ]
 end
 
 to setup-patches
