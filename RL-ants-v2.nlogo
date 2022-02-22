@@ -16,6 +16,11 @@ patches-own [  ;; SM defines the variables that all patches can use. Can also be
   food-source-number   ;; number (1, 2, or 3) to identify the food sources
 ]
 
+turtles-own [
+  isFoodPatch
+  hasNotFood
+]
+
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Setup procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -35,10 +40,30 @@ to setup
   set-default-shape turtles "bug"
   create-turtles population  ;; SM Creates number new turtles at the origin. New turtles have random integer headings. <population> is slider in GUI
   ;; SM commands run by created turtles right after creation (part of <create-turtles> command
-  [ set size 2         ;; easier to see
+  [ set isFoodPatch false
+    set hasNotFood true
+    set size 2         ;; easier to see
     set color red  ]   ;; red = not carrying food
+  ask turtles [
+    qlearningextension:state-def["isFoodPatch" "hasNotFood"]  ;; SM ARE "xcor" "ycor"  NEEDED??
+    (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM WHAT ABOUT OTHER (not learnt) ACTIONS??
+    qlearningextension:reward [rewardFunc]
+    ;;qlearningextension:end-episode [isEndState] resetEpisode
+    ;;qlearningextension:action-selection "e-greedy" [0.5 0.95]
+    ;;qlearningextension:learning-rate 0.95
+    ;;qlearningextension:discount-factor 0.75
+    ; used to create the plot
+    ;;create-temporary-plot-pen (word who)
+    ;;set-plot-pen-color color
+    ;;set reward-list []
+  ]
   setup-patches
   reset-ticks
+end
+
+to-report rewardFunc
+  set reward-list lput [reward] of patch-here reward-list
+  report [reward] of patch-here
 end
 
 to setup-patches
@@ -96,7 +121,10 @@ to go  ;; forever button
   ask turtles
   [ if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
     ifelse color = red  ;; SM red ants have no food, green ants have food
-    [ pick-food              ;; not carrying food? try to pick it up or look for it
+    [ ifelse food > 0
+      [ set isFoodPatch true ]
+      [ set isFoodPatch false ]
+      pick-food              ;; SM I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
       follow-pheromone ]
     [ drop-food              ;; carrying food? take it back to nest while dropping pheromone
       drop-pheromone
@@ -128,6 +156,7 @@ to drop-food
   if nest?
   [ ;; drop food and head out again
     set color red
+    set hasNotFood true
     rt 180 ]  ;; SM alias for <right>, to turn of X degrees
 end
 
@@ -141,48 +170,21 @@ to follow-nest
   [ uphill-nest-scent ]         ;; head toward the greatest value of local-nest-scent
 end
 
-to return-to-nest  ;; turtle procedure
-  ifelse nest?
-  [ ;; drop food and head out again
-    set color red
-    rt 180 ]  ;; SM alias for <right>, to turn of X degrees
-  [ set chemical chemical + chemical-droplet  ;; drop some chemical SM remember that turtles can access variables of patch they are in
-    uphill-nest-scent ]         ;; head toward the greatest value of local-nest-scent
+to pick-food
+  set color green          ;; pick up food
+  set hasNotFood false
+  set food food - 1        ;; and reduce the food source
+  rt 180                 ;; and turn around SM IS THIS TOO MUCH FOR LEARNING? (learning to head back to nest is easier with this)
 end
 
-to pick-food
-  if food > 0
-  [ set color green          ;; pick up food
-    set food food - 1        ;; and reduce the food source
-    rt 180 ]                 ;; and turn around
+to dont-pick-food
+  rt 180
 end
 
 ;; go in the direction where the chemical smell is strongest
 to follow-pheromone
   if (chemical >= chemical-threshold)  ;; SM the following seems to be empirically set to avoid ants following the pheromone trail AWAY from food; <and (chemical < 2)>. A better approach is to modify uphill-chemical to avoid following increasing nest scent
   [ uphill-chemical-v2 ]
-end
-
-to look-for-food  ;; turtle procedure
-  if food > 0
-  [ set color green          ;; pick up food
-    set food food - 1        ;; and reduce the food source
-    rt 180                   ;; and turn around
-    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
-  ;; go in the direction where the chemical smell is strongest
-  if (chemical >= chemical-threshold)  ;; SM the following seems to be empirically set to avoid ants following the pheromone trail AWAY from food; <and (chemical < 2)>. A better approach is to modify uphill-chemical to avoid following increasing nest scent
-  [ uphill-chemical-v2 ]
-end
-
-;; sniff left and right, and go where the strongest smell is
-to uphill-chemical  ;; turtle procedure
-  let scent-ahead chemical-scent-at-angle   0
-  let scent-right chemical-scent-at-angle  45
-  let scent-left  chemical-scent-at-angle -45
-  if (scent-right > scent-ahead) or (scent-left > scent-ahead)
-  [ ifelse scent-right > scent-left
-    [ rt 45 ]
-    [ lt 45 ] ]
 end
 
 ;; SM improved uphill-chemical
