@@ -53,10 +53,11 @@ to setup
     (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
-    ;;qlearningextension:action-selection "e-greedy" [0.5 0.95]
-    ;;qlearningextension:learning-rate 0.95
-    ;;qlearningextension:discount-factor 0.75
+    qlearningextension:action-selection "e-greedy" [0.5 0.95]
+    qlearningextension:learning-rate 0.95
+    qlearningextension:discount-factor 0.75
     ; used to create the plot
+    set-current-plot "Ave Reward Per Episode"
     create-temporary-plot-pen (word who)
     set-plot-pen-color color
     set reward-list []
@@ -112,6 +113,49 @@ end
 ;;; LEARNING procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to learn-for
+  if (current-episode = episodes)
+  [ set episode-end 0
+    ;set previous-episodes previous-episodes + episodes
+    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
+  learn
+  if (episode-end = 1)
+  [ set current-episode current-episode + 1
+    ;set last-episode-ticks ticks
+    ;set episode-ticks lput last-episode-ticks episode-ticks
+    set episode-end 0
+    setup-learning ]
+end
+
+to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
+  ask turtles
+  [ if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
+    ifelse food > 0
+      [ set isFoodPatch true ]
+      [ set isFoodPatch false ]
+    qlearningextension:learning
+    print(qlearningextension:get-qtable)
+    ifelse color = red  ;; SM red ants have no food, green ants have food
+    [
+      ;pick-food              ;; SM: I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
+      ifelse (chemical >= chemical-threshold)
+        [ follow-pheromone ]
+        [ random-walk ]
+    ]
+    [
+      drop-food
+      drop-pheromone
+      follow-nest
+    ]
+    do-move
+    ]
+  diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
+  ask patches
+  [ set chemical chemical * (100 - evaporation-rate) / 100  ;; slowly evaporate chemical
+    recolor-patch ]
+  tick
+end
+
 to-report rewardFunc
   let reward -1
   if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
@@ -128,8 +172,6 @@ to-report isEndState
 end
 
 to resetEpisode
-
-
   ; used to update the plot
   let rew-sum 0
   let length-rew 0
@@ -140,11 +182,24 @@ to resetEpisode
   let avg-rew rew-sum / length-rew
 
   set-current-plot "Ave Reward Per Episode"
-  ;;set-plot-y-range -10 10
   set-current-plot-pen (word who)
   plot avg-rew
 
   set reward-list []
+end
+
+to setup-learning
+  clear-ticks
+  clear-patches
+  clear-drawing
+  clear-output
+  set-current-plot "Food in each pile"
+  clear-plot
+  set-current-plot "Ants status"
+  clear-plot
+
+  setup-patches
+  reset-ticks
 end
 
 ;;;;;;;;;;;;;;;;;;
@@ -208,7 +263,7 @@ to go  ;; forever button
       [ set isFoodPatch false ]
     ifelse color = red  ;; SM red ants have no food, green ants have food
     [
-      ;pick-food              ;; SM: I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
+      pick-food
       ifelse (chemical >= chemical-threshold)
         [ follow-pheromone ]
         [ random-walk ]
@@ -399,7 +454,7 @@ population
 population
 0.0
 200.0
-200.0
+1.0
 1.0
 1
 NIL
@@ -671,6 +726,34 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" ""
+
+BUTTON
+1153
+286
+1241
+319
+NIL
+learn-for
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+INPUTBOX
+1249
+287
+1316
+347
+episodes
+2
+1
+0
+String
 
 @#$#@#$#@
 ## WHAT IS IT?
