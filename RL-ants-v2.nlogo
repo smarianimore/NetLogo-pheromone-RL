@@ -8,18 +8,19 @@ globals [
   previous-episodes
 ]
 
-patches-own [  ;; SM defines the variables that all patches can use. Can also be directly accessed by any turtle standing on the patch.
+patches-own [
   chemical             ;; amount of chemical on this patch
   food                 ;; amount of food on this patch (0, 1, or 2)
   nest?                ;; true on nest patches, false elsewhere
-  local-nest-scent           ;; number that is higher closer to the nest
+  local-nest-scent     ;; number that is higher closer to the nest
   food-source-number   ;; number (1, 2, or 3) to identify the food sources
 ]
 
 turtles-own [
-  isFoodPatch
-  hasNotFood
-  lastAction
+  isFoodPatch          ;; needed by qlearningextension:state-def that can only report turtle variables
+  hasNotFood           ;; needed by qlearningextension:state-def that can only report turtle variables
+  lastAction           ;; needed for reward function SM: DOES IT MAKE SENSE FROM RL STANDPOINT??
+  reward-list          ;; for plots
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -27,53 +28,49 @@ turtles-own [
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
 to setup
-  ;clear-globals
   clear-ticks
   clear-turtles
   clear-patches
   clear-drawing
-  ;clear-all-plots
   clear-output
   set-current-plot "Food in each pile"
   clear-plot
   set-current-plot "Ants status"
   clear-plot
   set-default-shape turtles "bug"
-  create-turtles population  ;; SM Creates number new turtles at the origin. New turtles have random integer headings. <population> is slider in GUI
-  ;; SM commands run by created turtles right after creation (part of <create-turtles> command
+
+  create-turtles population
   [ set isFoodPatch false
     set hasNotFood true
-    set size 2         ;; easier to see
-    set color red  ]   ;; red = not carrying food
+    set size 2
+    set color red  ]                                           ;; red = not carrying food
+
+  set-current-plot "Ave Reward Per Episode"
+  set-plot-y-range -10 10
+
   ask turtles [
-    qlearningextension:state-def["isFoodPatch" "hasNotFood"]  ;; SM ARE "xcor" "ycor"  NEEDED??
-    (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM WHAT ABOUT OTHER (not learnt) ACTIONS??
+    qlearningextension:state-def["isFoodPatch" "hasNotFood"]   ;; SM: ARE "xcor" "ycor"  NEEDED??
+    (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
     qlearningextension:reward [rewardFunc]
-    ;;qlearningextension:end-episode [isEndState] resetEpisode
+    qlearningextension:end-episode [isEndState] resetEpisode
     ;;qlearningextension:action-selection "e-greedy" [0.5 0.95]
     ;;qlearningextension:learning-rate 0.95
     ;;qlearningextension:discount-factor 0.75
     ; used to create the plot
-    ;;create-temporary-plot-pen (word who)
-    ;;set-plot-pen-color color
-    ;;set reward-list []
+    create-temporary-plot-pen (word who)
+    set-plot-pen-color color
+    set reward-list []
   ]
+
   setup-patches
   reset-ticks
-end
-
-to-report rewardFunc
-  ;;set reward-list lput [reward] of patch-here reward-list
-  ifelse isFoodPatch and not hasNotFood and lastAction = "pick-food"  ;; SM isFoodPatch could return 0 because the ant took the food....
-  [ report 10 ]
-  [ report -1 ]
 end
 
 to setup-patches
   let food-size max-food-size
   if (rng-food-size)
   [ set food-size random max-food-size + 1 ]
-  ask patches  ;; SM ask the specified agent or agentset to run the given commands. each agent will take its turn in a random order
+  ask patches
   [ setup-nest
     setup-food food-size
     recolor-patch ]
@@ -96,13 +93,11 @@ to setup-food [food-size]  ;; patch procedure
   ;; setup food source three on the upper-left
   if (distancexy (-0.8 * max-pxcor) (0.8 * max-pycor)) < food-size * 1.5
   [ set food-source-number 3 ]
-  ;; set "food" at sources to either 1 or 2, randomly
   if food-source-number > 0
-  [ set food one-of [1 2] ]  ;; SM draws random from list or agentset
+  [ set food one-of [1] ]  ;; SM draws random from list or agentset, removed 2 to lower randomness
 end
 
 to recolor-patch  ;; patch procedure
-  ;; give color to nest and food sources
   ifelse nest?
   [ set pcolor violet ]  ;; SM true path
   [ ifelse food > 0  ;; SM false path
@@ -111,6 +106,91 @@ to recolor-patch  ;; patch procedure
       if food-source-number = 3 [ set pcolor blue ] ]
     ;; scale color to show chemical concentration
     [ set pcolor scale-color yellow chemical 0.1 5 ] ]  ;; SM scale <color> by <number> within <range1>,<range2>. When <range1> <= <range2>, then the larger <number>, the lighter the shade.
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; LEARNING procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report rewardFunc
+  let reward -1
+  if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
+    [ set reward 10 ]
+  set reward-list lput reward reward-list
+  report reward
+end
+
+to-report isEndState
+  if count patches with [pcolor = cyan or pcolor = sky or pcolor = blue] <= 0 [
+    report true
+  ]
+  report false
+end
+
+to resetEpisode
+
+
+  ; used to update the plot
+  let rew-sum 0
+  let length-rew 0
+  foreach reward-list [ r ->
+    set rew-sum rew-sum + r
+    set length-rew length-rew + 1
+  ]
+  let avg-rew rew-sum / length-rew
+
+  set-current-plot "Ave Reward Per Episode"
+  ;;set-plot-y-range -10 10
+  set-current-plot-pen (word who)
+  plot avg-rew
+
+  set reward-list []
+end
+
+;;;;;;;;;;;;;;;;;;
+;;; RL actions ;;;
+;;;;;;;;;;;;;;;;;;
+
+to drop-food
+  if nest?
+  [ ;; drop food and head out again
+    set color red
+    set hasNotFood true
+    rt 180 ]  ;; SM alias for <right>, to turn of X degrees
+end
+
+to drop-pheromone
+  if not nest?
+  [ set chemical chemical + chemical-droplet ]  ;; drop some chemical SM remember that turtles can access variables of patch they are in
+end
+
+to follow-nest
+  if not nest?
+  [ uphill-nest-scent ]  ;; head toward the greatest value of local-nest-scent
+end
+
+to pick-food
+  if food > 0 [
+    set color green  ;; pick up food
+    set hasNotFood false
+    set food food - 1  ;; and reduce the food source
+    rt 180  ;; and turn around SM: IS THIS TOO MUCH FOR LEARNING? (learning to head back to nest is easier with this)
+  ]
+end
+
+to dont-pick-food
+
+end
+
+;; go in the direction where the chemical smell is strongest
+to follow-pheromone
+  if (chemical >= chemical-threshold)
+  [ uphill-chemical-v2 ]
+end
+
+to random-walk  ;; turtle procedure
+  rt random 45
+  lt random 45
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -123,16 +203,22 @@ to go  ;; forever button
     stop ]
   ask turtles
   [ if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
-    ifelse color = red  ;; SM red ants have no food, green ants have food
-    [ ifelse food > 0
+    ifelse food > 0
       [ set isFoodPatch true ]
       [ set isFoodPatch false ]
-      pick-food              ;; SM I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
-      follow-pheromone ]
-    [ drop-food              ;; carrying food? take it back to nest while dropping pheromone
+    ifelse color = red  ;; SM red ants have no food, green ants have food
+    [
+      ;pick-food              ;; SM: I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
+      ifelse (chemical >= chemical-threshold)
+        [ follow-pheromone ]
+        [ random-walk ]
+    ]
+    [
+      drop-food
       drop-pheromone
-      follow-nest ]
-    random-walk
+      follow-nest
+    ]
+    do-move
     ]
   diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
   ask patches
@@ -155,39 +241,13 @@ to go-for
     setup ]
 end
 
-to drop-food
-  if nest?
-  [ ;; drop food and head out again
-    set color red
-    set hasNotFood true
-    rt 180 ]  ;; SM alias for <right>, to turn of X degrees
-end
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Helper procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to drop-pheromone
-  if not nest?
-  [ set chemical chemical + chemical-droplet ]  ;; drop some chemical SM remember that turtles can access variables of patch they are in
-end
-
-to follow-nest
-  if not nest?
-  [ uphill-nest-scent ]         ;; head toward the greatest value of local-nest-scent
-end
-
-to pick-food
-  set color green          ;; pick up food
-  set hasNotFood false
-  set food food - 1        ;; and reduce the food source
-  rt 180                 ;; and turn around SM IS THIS TOO MUCH FOR LEARNING? (learning to head back to nest is easier with this)
-end
-
-to dont-pick-food
-  rt 180
-end
-
-;; go in the direction where the chemical smell is strongest
-to follow-pheromone
-  if (chemical >= chemical-threshold)  ;; SM the following seems to be empirically set to avoid ants following the pheromone trail AWAY from food; <and (chemical < 2)>. A better approach is to modify uphill-chemical to avoid following increasing nest scent
-  [ uphill-chemical-v2 ]
+to do-move
+  if not can-move? 1 [ rt 180 ]  ;; SM Reports true if this turtle can move distance in the direction it is facing without violating the topology (wrapping is set via interface settings)
+  fd 1  ;; SM alias for <forward> (move ahead 1 step)
 end
 
 ;; SM improved uphill-chemical
@@ -198,7 +258,6 @@ to uphill-chemical-v2  ;; turtle procedure
   let scent-ahead-n nest-scent-at-angle   0
   let scent-right-n nest-scent-at-angle  45
   let scent-left-n  nest-scent-at-angle -45
-;  if (scent-right > scent-ahead) or (scent-left > scent-ahead)
   ifelse (scent-right > scent-ahead) or (scent-left > scent-ahead)
   [ ifelse scent-right > scent-left
     [ ifelse scent-right-n < local-nest-scent
@@ -224,13 +283,6 @@ to uphill-nest-scent  ;; turtle procedure
     [ lt 45 ] ]
 end
 
-to random-walk  ;; turtle procedure
-  rt random 45
-  lt random 45
-  if not can-move? 1 [ rt 180 ]  ;; SM Reports true if this turtle can move distance in the direction it is facing without violating the topology (wrapping is set via interface settings)
-  fd 1  ;; SM alias for <forward> (move ahead 1 step)
-end
-
 to-report nest-scent-at-angle [angle]
   let p patch-right-and-ahead angle 1  ;; SM reports the patch at right <angle> and <distance> from this turtle
   if p = nobody [ report 0 ]  ;; SM Immediately exits from the current to-report procedure and reports value
@@ -244,7 +296,7 @@ to-report chemical-scent-at-angle [angle]
 end
 
 
-; Copyright 1997 Uri Wilensky.
+; Copyright 2022 Stefano Mariani.
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -601,6 +653,24 @@ previous-episodes
 17
 1
 11
+
+PLOT
+1152
+13
+1425
+277
+Ave Reward Per Episode
+episode
+ave reward
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" ""
 
 @#$#@#$#@
 ## WHAT IS IT?
