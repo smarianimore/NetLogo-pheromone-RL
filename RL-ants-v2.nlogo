@@ -46,6 +46,7 @@ to setup
     set color red  ]                                           ;; red = not carrying food
 
   set-current-plot "Ave Reward Per Episode"
+  clear-plot
   set-plot-y-range -10 10
 
   ask turtles [
@@ -62,6 +63,21 @@ to setup
     set-plot-pen-color color
     set reward-list []
   ]
+
+  setup-patches
+  reset-ticks
+end
+
+to setup-learning
+  clear-ticks
+  clear-patches
+  clear-drawing
+  clear-output
+  set-current-plot "Food in each pile"
+  clear-plot
+  set-current-plot "Ants status"
+  clear-plot
+  ;clear-all
 
   setup-patches
   reset-ticks
@@ -113,49 +129,6 @@ end
 ;;; LEARNING procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to learn-for
-  if (current-episode = episodes)
-  [ set episode-end 0
-    ;set previous-episodes previous-episodes + episodes
-    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
-  learn
-  if (episode-end = 1)
-  [ set current-episode current-episode + 1
-    ;set last-episode-ticks ticks
-    ;set episode-ticks lput last-episode-ticks episode-ticks
-    set episode-end 0
-    setup-learning ]
-end
-
-to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
-  ask turtles
-  [ if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
-    ifelse food > 0
-      [ set isFoodPatch true ]
-      [ set isFoodPatch false ]
-    qlearningextension:learning
-    print(qlearningextension:get-qtable)
-    ifelse color = red  ;; SM red ants have no food, green ants have food
-    [
-      ;pick-food              ;; SM: I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
-      ifelse (chemical >= chemical-threshold)
-        [ follow-pheromone ]
-        [ random-walk ]
-    ]
-    [
-      drop-food
-      drop-pheromone
-      follow-nest
-    ]
-    do-move
-    ]
-  diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
-  ask patches
-  [ set chemical chemical * (100 - evaporation-rate) / 100  ;; slowly evaporate chemical
-    recolor-patch ]
-  tick
-end
-
 to-report rewardFunc
   let reward -1
   if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
@@ -165,10 +138,11 @@ to-report rewardFunc
 end
 
 to-report isEndState
-  if count patches with [pcolor = cyan or pcolor = sky or pcolor = blue] <= 0 [
-    report true
-  ]
-  report false
+  let result false
+  let nPatches count patches with [pcolor = cyan or pcolor = sky or pcolor = blue]
+  if nPatches = 0
+    [ set result true ]
+  report result
 end
 
 to resetEpisode
@@ -186,20 +160,6 @@ to resetEpisode
   plot avg-rew
 
   set reward-list []
-end
-
-to setup-learning
-  clear-ticks
-  clear-patches
-  clear-drawing
-  clear-output
-  set-current-plot "Food in each pile"
-  clear-plot
-  set-current-plot "Ants status"
-  clear-plot
-
-  setup-patches
-  reset-ticks
 end
 
 ;;;;;;;;;;;;;;;;;;
@@ -252,6 +212,67 @@ end
 ;;; Go procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;
 
+to learn-for  ;; forever button
+  if (current-episode = episodes)
+  [ set episode-end 0
+    ;set previous-episodes previous-episodes + episodes
+    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
+  learn
+  if (episode-end = 1)
+  [ set current-episode current-episode + 1
+    ;set last-episode-ticks ticks
+    ;set episode-ticks lput last-episode-ticks episode-ticks
+    set episode-end 0
+    setup-learning ]
+end
+
+to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
+  if (all? patches [food = 0] and all? turtles [color = red])
+    [ setup-learning ]
+  ask turtles
+  [ if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
+    ifelse food > 0
+      [ set isFoodPatch true ]
+      [ set isFoodPatch false ]
+    qlearningextension:learning
+    ;print(qlearningextension:get-qtable)
+    ifelse color = red  ;; SM red ants have no food, green ants have food
+    [
+      ;pick-food              ;; SM: I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
+      if (chemical >= chemical-threshold)
+        [ follow-pheromone ]
+        ;[ random-walk ]
+    ]
+    [
+      drop-food
+      drop-pheromone
+      follow-nest
+    ]
+    random-walk
+    do-move
+    ]
+  diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
+  ask patches
+  [ set chemical chemical * (100 - evaporation-rate) / 100  ;; slowly evaporate chemical
+    recolor-patch ]
+  tick
+  ;if isEndState [ print "episode end" ]
+end
+
+to go-for
+  if (current-episode = iters)
+  [ set episode-end 0
+    set previous-episodes previous-episodes + iters
+    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
+  go
+  if (episode-end = 1)
+  [ set current-episode current-episode + 1
+    set last-episode-ticks ticks
+    set episode-ticks lput last-episode-ticks episode-ticks
+    set episode-end 0
+    setup ]
+end
+
 to go  ;; forever button
   if (all? patches [food = 0] and all? turtles [color = red])
   [ set episode-end 1
@@ -280,20 +301,6 @@ to go  ;; forever button
   [ set chemical chemical * (100 - evaporation-rate) / 100  ;; slowly evaporate chemical
     recolor-patch ]
   tick
-end
-
-to go-for
-  if (current-episode = iters)
-  [ set episode-end 0
-    set previous-episodes previous-episodes + iters
-    stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
-  go
-  if (episode-end = 1)
-  [ set current-episode current-episode + 1
-    set last-episode-ticks ticks
-    set episode-ticks lput last-episode-ticks episode-ticks
-    set episode-end 0
-    setup ]
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -454,7 +461,7 @@ population
 population
 0.0
 200.0
-1.0
+200.0
 1.0
 1
 NIL
@@ -509,7 +516,7 @@ max-food-size
 max-food-size
 1
 8
-5.0
+2.0
 1
 1
 NIL
