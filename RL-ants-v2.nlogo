@@ -54,9 +54,9 @@ to setup
     (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
-    qlearningextension:action-selection "e-greedy" [0.5 0.99]
-    qlearningextension:learning-rate 0.1
-    qlearningextension:discount-factor 0.9  ;; SM: care about future more than present
+    qlearningextension:action-selection "e-greedy" [0.5 0.9]
+    qlearningextension:learning-rate learning-rate
+    qlearningextension:discount-factor discount  ;; SM: care about future more than present
     ; used to create the plot
     set-current-plot "Ave Reward Per Episode"
     create-temporary-plot-pen (word who)
@@ -136,13 +136,17 @@ to-report rewardFunc  ;; SM called at end of episode
     set rew-sum rew-sum + r
     set length-rew length-rew + 1
   ]
-  let reward  0
-  ifelse (length-rew = 0)
-    [ set reward 0 ]
-    [ set reward rew-sum / length-rew ]
+  if (length-rew = 0) [ set length-rew 1 ]
+  let reward rew-sum / length-rew  ;; SM: THERE IS A PROBLEM HERE: EVERY EPISODE (that now is every tick) ANTS GET REWARDED, EVEN IF THEY DIDN'T HAVE THE CHANCE TO DO THE RIGHT ACTION (because they are not on a food patch)
   ;let reward -1
   if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood
     [ set reward 100 ]
+  ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and hasNotFood
+  ;  [ set reward -10 ]
+  ;if (not (pcolor = cyan or pcolor = sky or pcolor = blue)) and not hasNotFood
+  ;  [ set reward rew-sum / length-rew ]
+  ;if (not (pcolor = cyan or pcolor = sky or pcolor = blue)) and hasNotFood
+  ;  [ set reward rew-sum / length-rew ]
   set reward-list lput reward reward-list
   report reward
 end
@@ -228,12 +232,13 @@ to learn-for  ;; forever button
   [ print "ALL episodes done"
     ;set episode-end 0
     ;set previous-episodes previous-episodes + episodes
+    type "GLOBAL average reward: " type compute-global-reward print ""
     stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
   learn
   ;if (episode-end = 1)
   ;[
     set current-episode current-episode + 1
-    if (show-every mod current-episode = 0)
+    if (current-episode mod show-every = 0)
       [ type "episode " type current-episode type " out of " type episodes type " done" print "" ]
     ;set last-episode-ticks ticks
     ;set episode-ticks lput last-episode-ticks episode-ticks
@@ -324,6 +329,26 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Helper procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report compute-global-reward
+  let avg-rewards []
+  ask turtles [
+    let rew-sum 0
+    let length-rew 0
+    foreach reward-list [ r ->
+      set rew-sum rew-sum + r
+      set length-rew length-rew + 1
+    ]
+    set avg-rewards lput (rew-sum / length-rew) avg-rewards
+  ]
+  let rew-sum 0
+  let length-rew 0
+  foreach avg-rewards [ r ->
+      set rew-sum rew-sum + r
+      set length-rew length-rew + 1
+    ]
+  report rew-sum / length-rew
+end
 
 to do-move
   if not can-move? 1 [ rt 180 ]  ;; SM Reports true if this turtle can move distance in the direction it is facing without violating the topology (wrapping is set via interface settings)
@@ -564,7 +589,7 @@ nest-scent
 nest-scent
 100
 500
-250.0
+260.0
 10
 1
 NIL
@@ -579,7 +604,7 @@ chemical-droplet
 chemical-droplet
 10
 100
-50.0
+60.0
 10
 1
 NIL
@@ -605,7 +630,7 @@ TEXTBOX
 368
 1387
 554
-These parameters are likely to be highly correlated:\n - high chemical-threshold makes ants less able to recognise trails (hence, to follow-them)\n - high chemical-droplet makes easier to form trails (as more pheromone is left)\n - high nest-scent makes easier to return to nest
+These parameters are likely to be highly correlated:\n - high chemical-threshold makes ants less able to recognise trails (hence, to follow-them)\n - high chemical-droplet makes easier to form trails (as more pheromone is left)\n - high nest-scent makes easier to return to nest but...
 12
 0.0
 1
@@ -737,7 +762,7 @@ previous-episodes
 PLOT
 1152
 13
-1425
+1586
 277
 Ave Reward Per Episode
 episode
@@ -775,7 +800,7 @@ INPUTBOX
 1321
 347
 episodes
-10000.0
+5000.0
 1
 0
 Number
@@ -790,6 +815,76 @@ show-every
 1
 0
 Number
+
+SLIDER
+1416
+287
+1588
+320
+random-action
+random-action
+0
+1
+0.5
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1416
+324
+1709
+357
+epsilon
+epsilon
+0
+1
+0.95
+0.005
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1417
+362
+1589
+395
+learning-rate
+learning-rate
+0
+1
+0.95
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1417
+400
+1589
+433
+discount
+discount
+0
+1
+0.95
+0.05
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+1601
+361
+1751
+501
+ - epsilon lowers the probability of a random action being performed at each episode\n - learnin-rate defines ...\n - discount defines how much future rewards do matter (higher value -> higher impact of future rewards)
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
