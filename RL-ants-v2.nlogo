@@ -54,13 +54,13 @@ to setup
     (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
-    qlearningextension:action-selection "e-greedy" [0.5 0.95]
-    qlearningextension:learning-rate 0.95
-    qlearningextension:discount-factor 0.75
+    qlearningextension:action-selection "e-greedy" [0.5 0.99]
+    qlearningextension:learning-rate 0.1
+    qlearningextension:discount-factor 0.9  ;; SM: care about future more than present
     ; used to create the plot
     set-current-plot "Ave Reward Per Episode"
     create-temporary-plot-pen (word who)
-    set-plot-pen-color color
+    set-plot-pen-color scale-color one-of base-colors who 0 count turtles
     set reward-list []
   ]
 
@@ -69,18 +69,18 @@ to setup
 end
 
 to setup-learning
-  clear-ticks
-  clear-patches
-  clear-drawing
-  clear-output
-  set-current-plot "Food in each pile"
-  clear-plot
-  set-current-plot "Ants status"
-  clear-plot
+  ;clear-ticks
+  ;clear-patches
+  ;clear-drawing
+  ;clear-output
+  ;set-current-plot "Food in each pile"
+  ;clear-plot
+  ;set-current-plot "Ants status"
+  ;clear-plot
   ;clear-all
 
-  setup-patches
-  reset-ticks
+  ;setup-patches
+  ;reset-ticks
 end
 
 to setup-patches
@@ -130,9 +130,19 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to-report rewardFunc  ;; SM called at end of episode
-  let reward -1
+  let rew-sum 0
+  let length-rew 0
+  foreach reward-list [ r ->
+    set rew-sum rew-sum + r
+    set length-rew length-rew + 1
+  ]
+  let reward  0
+  ifelse (length-rew = 0)
+    [ set reward 0 ]
+    [ set reward rew-sum / length-rew ]
+  ;let reward -1
   if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood
-    [ set reward 10 ]
+    [ set reward 100 ]
   set reward-list lput reward reward-list
   report reward
 end
@@ -156,11 +166,11 @@ to resetEpisode  ;; SM called at end of episode
   ]
   let avg-rew rew-sum / length-rew
 
-  ;set-current-plot "Ave Reward Per Episode"
+  set-current-plot "Ave Reward Per Episode"
   set-current-plot-pen (word who)
   plot avg-rew
 
-  set reward-list []
+  ;set reward-list []
 end
 
 ;;;;;;;;;;;;;;;;;;
@@ -189,7 +199,7 @@ to pick-food
   if food > 0 [
     set color green  ;; pick up food
     set hasNotFood false
-    set food food - 1  ;; and reduce the food source
+    ;set food food - 1  ;; and reduce the food source
     rt 180  ;; and turn around SM: IS THIS TOO MUCH FOR LEARNING? (learning to head back to nest is easier with this)
   ]
 end
@@ -214,7 +224,7 @@ end
 ;;;;;;;;;;;;;;;;;;;;;
 
 to learn-for  ;; forever button
-  if (current-episode = episodes)
+  if (current-episode = episodes or (all? patches [food = 0] and all? turtles [color = red]))
   [ print "ALL episodes done"
     ;set episode-end 0
     ;set previous-episodes previous-episodes + episodes
@@ -223,7 +233,8 @@ to learn-for  ;; forever button
   ;if (episode-end = 1)
   ;[
     set current-episode current-episode + 1
-    type "episode " type current-episode type " out of " type episodes type " done" print ""
+    if (show-every mod current-episode = 0)
+      [ type "episode " type current-episode type " out of " type episodes type " done" print "" ]
     ;set last-episode-ticks ticks
     ;set episode-ticks lput last-episode-ticks episode-ticks
     ;set episode-end 0
@@ -421,7 +432,7 @@ diffusion-rate
 diffusion-rate
 0.0
 99.0
-25.0
+50.0
 1.0
 1
 NIL
@@ -436,7 +447,7 @@ evaporation-rate
 evaporation-rate
 0.0
 99.0
-25.0
+5.0
 1.0
 1
 NIL
@@ -468,7 +479,7 @@ population
 population
 0.0
 200.0
-200.0
+10.0
 1.0
 1
 NIL
@@ -523,7 +534,7 @@ max-food-size
 max-food-size
 1
 8
-2.0
+5.0
 1
 1
 NIL
@@ -645,7 +656,7 @@ SWITCH
 320
 rng-food-size
 rng-food-size
-0
+1
 1
 -1000
 
@@ -736,7 +747,7 @@ ave reward
 0.0
 10.0
 true
-false
+true
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" ""
@@ -764,6 +775,17 @@ INPUTBOX
 1321
 347
 episodes
+10000.0
+1
+0
+Number
+
+INPUTBOX
+1326
+287
+1410
+347
+show-every
 100.0
 1
 0
