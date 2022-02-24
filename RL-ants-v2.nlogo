@@ -129,23 +129,24 @@ end
 ;;; LEARNING procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report rewardFunc
+to-report rewardFunc  ;; SM called at end of episode
   let reward -1
-  if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
+  if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood
     [ set reward 10 ]
   set reward-list lput reward reward-list
   report reward
 end
 
 to-report isEndState
-  let result false
-  let nPatches count patches with [pcolor = cyan or pcolor = sky or pcolor = blue]
-  if nPatches = 0
-    [ set result true ]
-  report result
+  ;let result false
+  ;let nPatches count patches with [pcolor = cyan or pcolor = sky or pcolor = blue]
+  ;if nPatches = 0
+  ;  [ set result true ]
+  ;report result
+  report true
 end
 
-to resetEpisode
+to resetEpisode  ;; SM called at end of episode
   ; used to update the plot
   let rew-sum 0
   let length-rew 0
@@ -155,7 +156,7 @@ to resetEpisode
   ]
   let avg-rew rew-sum / length-rew
 
-  set-current-plot "Ave Reward Per Episode"
+  ;set-current-plot "Ave Reward Per Episode"
   set-current-plot-pen (word who)
   plot avg-rew
 
@@ -215,24 +216,26 @@ end
 to learn-for  ;; forever button
   if (current-episode = episodes)
   [ print "ALL episodes done"
-    set episode-end 0
+    ;set episode-end 0
     ;set previous-episodes previous-episodes + episodes
     stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
   learn
-  if (episode-end = 1)
-  [ set current-episode current-episode + 1
+  ;if (episode-end = 1)
+  ;[
+    set current-episode current-episode + 1
     type "episode " type current-episode type " out of " type episodes type " done" print ""
     ;set last-episode-ticks ticks
     ;set episode-ticks lput last-episode-ticks episode-ticks
-    set episode-end 0
-    setup-learning ]
+    ;set episode-end 0
+    setup-learning
+  ;]
 end
 
 to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
-  if (all? patches [food = 0] and all? turtles [color = red])
-    [ set episode-end 1
+  ;if (all? patches [food = 0] and all? turtles [color = red])
+  ;  [ set episode-end 1
       ;setup-learning
-      stop ]
+  ;    stop ]
   ask turtles
   [ ;if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
     ifelse food > 0
@@ -761,7 +764,7 @@ INPUTBOX
 1321
 347
 episodes
-2.0
+100.0
 1
 0
 Number
