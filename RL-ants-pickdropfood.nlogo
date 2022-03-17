@@ -50,7 +50,10 @@ to setup
     set size 2
     set color red ]                                           ;; red = not carrying food
 
-  set-current-plot "Ave Reward Per Episode"
+  set-current-plot "Average Reward"
+  clear-plot
+  set-plot-y-range -10 10
+  set-current-plot "Cumulative Reward"
   clear-plot
   set-plot-y-range -10 10
 
@@ -63,9 +66,13 @@ to setup
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount  ;; SM: care about future more than present
     ; used to create the plot
-    set-current-plot "Ave Reward Per Episode"
+    set-current-plot "Average Reward"
     create-temporary-plot-pen (word who)
-    set-plot-pen-color scale-color one-of base-colors who 0 count turtles
+    let p-color scale-color one-of base-colors who 0 count turtles
+    set-plot-pen-color p-color
+    set-current-plot "Cumulative Reward"
+    create-temporary-plot-pen (word who)
+    set-plot-pen-color p-color
     set reward-list []
     set action-list []
   ]
@@ -144,14 +151,18 @@ to-report rewardFunc  ;; SM called at end of episode
   ;]
   ;if (length-rew = 0) [ set length-rew 1 ]
   ;let reward rew-sum / length-rew  ;; SM: THERE IS A PROBLEM HERE: EVERY EPISODE (that now is every tick) ANTS GET REWARDED, EVEN IF THEY DIDN'T HAVE THE CHANCE TO DO THE RIGHT ACTION (because they are not on a food patch)
-  let reward -1
+  let reward 0
   ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
   if isFoodPatch and (not hasNotFood) and lastAction = "pick-food"
     [ set reward 100 ]
+  if isFoodPatch and (not hasNotFood) and lastAction = "dont-pick-food"
+    [ set reward -100 ]
   ;if (not isFoodPatch) and lastAction = "dont-pick-food"
     ;[ set reward 1 ]
   if isNestPatch and hasNotFood and lastAction = "drop-food"
     [ set reward 100 ]
+  if isNestPatch and hasNotFood and lastAction = "dont-drop-food"
+    [ set reward -100 ]
   ;if (not isNestPatch) and lastAction = "dont-drop-food"
   ;  [ set reward 1 ]
   ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and hasNotFood
@@ -183,9 +194,13 @@ to resetEpisode  ;; SM called at end of episode
   ]
   let avg-rew rew-sum / length-rew
 
-  set-current-plot "Ave Reward Per Episode"
+  set-current-plot "Average Reward"
   set-current-plot-pen (word who)
   plot avg-rew
+
+  set-current-plot "Cumulative Reward"
+  set-current-plot-pen (word who)
+  plot rew-sum
 
   ;set reward-list []
 end
@@ -791,11 +806,11 @@ previous-episodes
 PLOT
 1152
 13
-1586
+1525
 277
-Ave Reward Per Episode
+Average Reward
 episode
-ave reward
+avg reward
 0.0
 10.0
 0.0
@@ -869,7 +884,7 @@ epsilon
 epsilon
 0
 1
-0.75
+0.9
 0.005
 1
 NIL
@@ -899,7 +914,7 @@ discount
 discount
 0
 1
-0.3
+0.9
 0.05
 1
 NIL
@@ -914,6 +929,24 @@ TEXTBOX
 11
 0.0
 1
+
+PLOT
+1528
+13
+1883
+277
+Cumulative Reward
+episode
+cumul. reward
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" ""
 
 @#$#@#$#@
 ## WHAT IS IT?
