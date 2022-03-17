@@ -21,6 +21,8 @@ turtles-own [
   hasNotFood           ;; needed by qlearningextension:state-def that can only report turtle variables
   lastAction           ;; needed for reward function SM: DOES IT MAKE SENSE FROM RL STANDPOINT??
   reward-list          ;; for plots
+  isNestPatch          ;; needed by qlearningextension:state-def that can only report turtle variables
+  action-list
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -42,6 +44,8 @@ to setup
   create-turtles population
   [ set isFoodPatch false
     set hasNotFood true
+    set isNestPatch true
+    set lastAction "null"
     set size 2
     set color red  ]                                           ;; red = not carrying food
 
@@ -50,8 +54,8 @@ to setup
   set-plot-y-range -10 10
 
   ask turtles [
-    qlearningextension:state-def["isFoodPatch" "hasNotFood"]   ;; SM: ARE "xcor" "ycor"  NEEDED??
-    (qlearningextension:actions [pick-food] [dont-pick-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
+    qlearningextension:state-def["isFoodPatch" "hasNotFood" "isNestPatch"]   ;; SM: IS "lastAction" NEEDED??
+    (qlearningextension:actions [pick-food] [dont-pick-food] [drop-food] [dont-drop-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.9]
@@ -62,6 +66,7 @@ to setup
     create-temporary-plot-pen (word who)
     set-plot-pen-color scale-color one-of base-colors who 0 count turtles
     set reward-list []
+    set action-list []
   ]
 
   setup-patches
@@ -130,17 +135,24 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to-report rewardFunc  ;; SM called at end of episode
-  let rew-sum 0
-  let length-rew 0
-  foreach reward-list [ r ->
-    set rew-sum rew-sum + r
-    set length-rew length-rew + 1
-  ]
-  if (length-rew = 0) [ set length-rew 1 ]
-  let reward rew-sum / length-rew  ;; SM: THERE IS A PROBLEM HERE: EVERY EPISODE (that now is every tick) ANTS GET REWARDED, EVEN IF THEY DIDN'T HAVE THE CHANCE TO DO THE RIGHT ACTION (because they are not on a food patch)
-  ;let reward -1
-  if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood
+  ;let rew-sum 0
+  ;let length-rew 0
+  ;foreach reward-list [ r ->
+  ;  set rew-sum rew-sum + r
+  ;  set length-rew length-rew + 1
+  ;]
+  ;if (length-rew = 0) [ set length-rew 1 ]
+  ;let reward rew-sum / length-rew  ;; SM: THERE IS A PROBLEM HERE: EVERY EPISODE (that now is every tick) ANTS GET REWARDED, EVEN IF THEY DIDN'T HAVE THE CHANCE TO DO THE RIGHT ACTION (because they are not on a food patch)
+  let reward -1
+  ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
+  if isFoodPatch and (not hasNotFood) and lastAction = "pick-food"
     [ set reward 100 ]
+  ;if (not isFoodPatch) and lastAction = "dont-pick-food"
+    ;[ set reward 1 ]
+  if isNestPatch and hasNotFood and lastAction = "drop-food"
+    [ set reward 100 ]
+  if (not isNestPatch) and lastAction = "dont-drop-food"
+    [ set reward 1 ]
   ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and hasNotFood
   ;  [ set reward -10 ]
   ;if (not (pcolor = cyan or pcolor = sky or pcolor = blue)) and not hasNotFood
@@ -182,25 +194,33 @@ end
 ;;;;;;;;;;;;;;;;;;
 
 to drop-food
-  if nest?
+  if nest? and (not hasNotFood)
   [ ;; drop food and head out again
+    set lastAction "drop-food"
     set color red
     set hasNotFood true
     rt 180 ]  ;; SM alias for <right>, to turn of X degrees
 end
 
+to dont-drop-food
+  set lastAction "dont-drop-food"
+end
+
 to drop-pheromone
+  ;set lastAction "drop-pheromone"
   if not nest?
   [ set chemical chemical + chemical-droplet ]  ;; drop some chemical SM remember that turtles can access variables of patch they are in
 end
 
 to follow-nest
+  ;set lastAction "follow-nest"
   if not nest?
   [ uphill-nest-scent ]  ;; head toward the greatest value of local-nest-scent
 end
 
 to pick-food
-  if food > 0 [
+  if food > 0 and hasNotFood [
+    set lastAction "pick-food"
     set color green  ;; pick up food
     set hasNotFood false
     ;set food food - 1  ;; and reduce the food source
@@ -209,16 +229,18 @@ to pick-food
 end
 
 to dont-pick-food
-
+  set lastAction "dont-pick-food"
 end
 
 ;; go in the direction where the chemical smell is strongest
 to follow-pheromone
+  ;set lastAction "follow-pheromone"
   if (chemical >= chemical-threshold)
   [ uphill-chemical-v2 ]
 end
 
 to random-walk  ;; turtle procedure
+  ;set lastAction "random-walk"
   rt random 45
   lt random 45
 end
@@ -239,7 +261,7 @@ to learn-for  ;; forever button
   ;[
     set current-episode current-episode + 1
     if (current-episode mod show-every = 0)
-      [ type "episode " type current-episode type " out of " type episodes type " done" print "" ]
+      [ type "episode " type current-episode type " out of " type episodes type " done " print "" ]
     ;set last-episode-ticks ticks
     ;set episode-ticks lput last-episode-ticks episode-ticks
     ;set episode-end 0
@@ -257,6 +279,9 @@ to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
     ifelse food > 0
       [ set isFoodPatch true ]
       [ set isFoodPatch false ]
+    ifelse nest?
+      [ set isNestPatch true ]
+      [ set isNestPatch false ]
     qlearningextension:learning
     ;print(qlearningextension:get-qtable)
     ifelse color = red  ;; SM red ants have no food, green ants have food
@@ -267,12 +292,15 @@ to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
         ;[ random-walk ]
     ]
     [
-      drop-food
+      ;drop-food
       drop-pheromone
       follow-nest
     ]
     random-walk
     do-move
+    if (current-episode mod show-every = 0)
+      [ set action-list lput lastAction action-list
+        type "actions of ant " type who type ": " type action-list print "" ]
     ]
   diffuse chemical (diffusion-rate / 100)  ;; SM tells each patch to share <patch-variable> by (<number> * 100)% to its 8 neighboring patches. <number> \in [0, 1].
   ask patches
@@ -458,7 +486,7 @@ diffusion-rate
 0.0
 99.0
 50.0
-1.0
+5
 1
 NIL
 HORIZONTAL
@@ -472,8 +500,8 @@ evaporation-rate
 evaporation-rate
 0.0
 99.0
-5.0
-1.0
+10.0
+5
 1
 NIL
 HORIZONTAL
@@ -589,7 +617,7 @@ nest-scent
 nest-scent
 100
 500
-260.0
+250.0
 10
 1
 NIL
@@ -604,7 +632,7 @@ chemical-droplet
 chemical-droplet
 10
 100
-60.0
+50.0
 10
 1
 NIL
@@ -855,7 +883,7 @@ learning-rate
 learning-rate
 0
 1
-0.95
+0.9
 0.05
 1
 NIL
@@ -870,7 +898,7 @@ discount
 discount
 0
 1
-0.95
+0.9
 0.05
 1
 NIL
