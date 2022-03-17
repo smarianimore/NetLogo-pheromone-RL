@@ -524,9 +524,9 @@ NIL
 0
 
 SLIDER
-31
+6
 36
-221
+249
 69
 population
 population
@@ -586,8 +586,8 @@ SLIDER
 max-food-size
 max-food-size
 1
-8
-5.0
+10
+8.0
 1
 1
 NIL
@@ -601,8 +601,8 @@ SLIDER
 nest-size
 nest-size
 1
-9
-5.0
+10
+9.0
 1
 1
 NIL
