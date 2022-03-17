@@ -46,8 +46,9 @@ to setup
     set hasNotFood true
     set isNestPatch true
     set lastAction "null"
+    set label who
     set size 2
-    set color red  ]                                           ;; red = not carrying food
+    set color red ]                                           ;; red = not carrying food
 
   set-current-plot "Ave Reward Per Episode"
   clear-plot
@@ -151,8 +152,8 @@ to-report rewardFunc  ;; SM called at end of episode
     ;[ set reward 1 ]
   if isNestPatch and hasNotFood and lastAction = "drop-food"
     [ set reward 100 ]
-  if (not isNestPatch) and lastAction = "dont-drop-food"
-    [ set reward 1 ]
+  ;if (not isNestPatch) and lastAction = "dont-drop-food"
+  ;  [ set reward 1 ]
   ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and hasNotFood
   ;  [ set reward -10 ]
   ;if (not (pcolor = cyan or pcolor = sky or pcolor = blue)) and not hasNotFood
@@ -532,7 +533,7 @@ population
 population
 0.0
 200.0
-10.0
+5.0
 1.0
 1
 NIL
@@ -587,7 +588,7 @@ max-food-size
 max-food-size
 1
 10
-8.0
+10.0
 1
 1
 NIL
@@ -602,7 +603,7 @@ nest-size
 nest-size
 1
 10
-9.0
+10.0
 1
 1
 NIL
@@ -868,7 +869,7 @@ epsilon
 epsilon
 0
 1
-0.95
+0.75
 0.005
 1
 NIL
@@ -898,7 +899,7 @@ discount
 discount
 0
 1
-0.9
+0.3
 0.05
 1
 NIL
@@ -908,8 +909,8 @@ TEXTBOX
 1601
 361
 1751
-501
- - epsilon lowers the probability of a random action being performed at each episode\n - learnin-rate defines ...\n - discount defines how much future rewards do matter (higher value -> higher impact of future rewards)
+529
+ - epsilon lowers the probability of a random action being performed at each episode\n - learnin-rate defines \"how much\" the agent learns at each episode\n - discount defines how much future rewards do matter (higher value -> higher impact of future rewards)
 11
 0.0
 1
