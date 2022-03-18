@@ -23,6 +23,7 @@ turtles-own [
   reward-list          ;; for plots
   isNestPatch          ;; needed by qlearningextension:state-def that can only report turtle variables
   action-list
+  followingNest
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46,6 +47,7 @@ to setup
     set hasNotFood true
     set isNestPatch true
     set lastAction "null"
+    set followingNest false
     set label who
     set size 2
     set color red ]                                           ;; red = not carrying food
@@ -58,8 +60,11 @@ to setup
   set-plot-y-range -10 10
 
   ask turtles [
-    qlearningextension:state-def["isFoodPatch" "hasNotFood" "isNestPatch"]   ;; SM: IS "lastAction" NEEDED??
-    (qlearningextension:actions [pick-food] [dont-pick-food] [drop-food] [dont-drop-food])  ;; SM: WHAT ABOUT OTHER (not learnt) ACTIONS??
+    qlearningextension:state-def["isFoodPatch" "hasNotFood" "isNestPatch" "followingNest"]   ;; SM: IS "lastAction" NEEDED??
+    ;qlearningextension:state-def["hasNotFood" "followingNest"]   ;; SM: IS "lastAction" NEEDED??
+    ;(qlearningextension:actions [pick-food] [dont-pick-food] [drop-food] [dont-drop-food] [drop-pheromone] [dont-drop-pheromone])  ;; SM: IS THIS WRONG AND SHOULD USE ONLY 1 ALTERNATIVE "do-nothing"?
+    (qlearningextension:actions [pick-food] [drop-food] [drop-pheromone] [do-nothing])  ;; SM: IS THIS WRONG AND SHOULD USE ONLY 1 ALTERNATIVE "do-nothing"?
+    ;(qlearningextension:actions [drop-pheromone] [dont-drop-pheromone])  ;; SM: IS THIS WRONG AND SHOULD USE ONLY 1 ALTERNATIVE "do-nothing"?
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.9]
@@ -151,24 +156,21 @@ to-report rewardFunc  ;; SM called at end of episode
   ;]
   ;if (length-rew = 0) [ set length-rew 1 ]
   ;let reward rew-sum / length-rew  ;; SM: THERE IS A PROBLEM HERE: EVERY EPISODE (that now is every tick) ANTS GET REWARDED, EVEN IF THEY DIDN'T HAVE THE CHANCE TO DO THE RIGHT ACTION (because they are not on a food patch)
-  let reward 0
-  ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and not hasNotFood and lastAction = "pick-food"
+  let reward -1
   if isFoodPatch and (not hasNotFood) and lastAction = "pick-food"
     [ set reward 100 ]
-  if isFoodPatch and (not hasNotFood) and lastAction = "dont-pick-food"
+  if isFoodPatch and (not hasNotFood) and (not (lastAction = "pick-food"))
     [ set reward -100 ]
-  ;if (not isFoodPatch) and lastAction = "dont-pick-food"
-    ;[ set reward 1 ]
   if isNestPatch and hasNotFood and lastAction = "drop-food"
     [ set reward 100 ]
-  if isNestPatch and hasNotFood and lastAction = "dont-drop-food"
+  if isNestPatch and hasNotFood and (not (lastAction = "drop-food"))
     [ set reward -100 ]
-  ;if (not isNestPatch) and lastAction = "dont-drop-food"
-  ;  [ set reward 1 ]
-  ;if (pcolor = cyan or pcolor = sky or pcolor = blue) and hasNotFood
-  ;  [ set reward -10 ]
-  ;if (not (pcolor = cyan or pcolor = sky or pcolor = blue)) and not hasNotFood
-  ;  [ set reward rew-sum / length-rew ]
+  if (color = green) and (not isNestPatch) and lastAction = "drop-pheromone"
+    [ set reward 100 ]
+  if (color = green) and (not isNestPatch) and (not (lastAction = "drop-pheromone"))
+    [ set reward -100 ]
+  if (color = red) and lastAction = "drop-pheromone"
+    [ set reward -100 ]
   ;if (not (pcolor = cyan or pcolor = sky or pcolor = blue)) and hasNotFood
   ;  [ set reward rew-sum / length-rew ]
   set reward-list lput reward reward-list
@@ -209,6 +211,10 @@ end
 ;;; RL actions ;;;
 ;;;;;;;;;;;;;;;;;;
 
+to do-nothing
+  set lastAction "do-nothing"
+end
+
 to drop-food
   if nest? and (not hasNotFood)
   [ ;; drop food and head out again
@@ -223,9 +229,13 @@ to dont-drop-food
 end
 
 to drop-pheromone
-  ;set lastAction "drop-pheromone"
+  set lastAction "drop-pheromone"
   if not nest?
   [ set chemical chemical + chemical-droplet ]  ;; drop some chemical SM remember that turtles can access variables of patch they are in
+end
+
+to dont-drop-pheromone
+  set lastAction "dont-drop-pheromone"
 end
 
 to follow-nest
@@ -268,28 +278,16 @@ end
 to learn-for  ;; forever button
   if (current-episode = episodes or (all? patches [food = 0] and all? turtles [color = red]))
   [ print "ALL episodes done"
-    ;set episode-end 0
-    ;set previous-episodes previous-episodes + episodes
     type "GLOBAL average reward: " type compute-global-reward print ""
     stop ]  ;; SM This agent exits immediately from the enclosing procedure, ask, or ask-like construct
   learn
-  ;if (episode-end = 1)
-  ;[
-    set current-episode current-episode + 1
-    if (current-episode mod show-every = 0)
-      [ type "episode " type current-episode type " out of " type episodes type " done " print "" ]
-    ;set last-episode-ticks ticks
-    ;set episode-ticks lput last-episode-ticks episode-ticks
-    ;set episode-end 0
-    setup-learning
-  ;]
+  set current-episode current-episode + 1
+  if (current-episode mod show-every = 0)
+    [ type "episode " type current-episode type " out of " type episodes type " done " print "" ]
+  setup-learning
 end
 
 to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
-  ;if (all? patches [food = 0] and all? turtles [color = red])
-  ;  [ set episode-end 1
-      ;setup-learning
-  ;    stop ]
   ask turtles
   [ ;if who >= ticks [ stop ] ;; delay initial departure SM <who> is turtle ID starting at 0, <ticks> is simulation step. Basically each turtle starts sequentially based on its ID
     ifelse food > 0
@@ -305,11 +303,10 @@ to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
       ;pick-food              ;; SM: I THINK THIS DOES NOT BELONG HERE, AS THE ANT SHOULD LEARN ITSELF TO DO THIS
       if (chemical >= chemical-threshold)
         [ follow-pheromone ]
-        ;[ random-walk ]
     ]
     [
       ;drop-food
-      drop-pheromone
+      ;drop-pheromone
       follow-nest
     ]
     random-walk
@@ -323,7 +320,6 @@ to learn  ;; same as 'go' but doesn't stop when food depleted and all ants red
   [ set chemical chemical * (100 - evaporation-rate) / 100  ;; slowly evaporate chemical
     recolor-patch ]
   tick
-  ;if isEndState [ print "episode end" ]
 end
 
 to go-for
@@ -426,10 +422,12 @@ to uphill-nest-scent  ;; turtle procedure
   let scent-ahead nest-scent-at-angle   0
   let scent-right nest-scent-at-angle  45
   let scent-left  nest-scent-at-angle -45
-  if (scent-right > scent-ahead) or (scent-left > scent-ahead)
-  [ ifelse scent-right > scent-left
+  ifelse (scent-right > scent-ahead) or (scent-left > scent-ahead)
+  [ set followingNest true
+    ifelse scent-right > scent-left
     [ rt 45 ]
     [ lt 45 ] ]
+  [ set followingNest false ]
 end
 
 to-report nest-scent-at-angle [angle]
@@ -603,7 +601,7 @@ max-food-size
 max-food-size
 1
 10
-10.0
+7.0
 1
 1
 NIL
@@ -618,7 +616,7 @@ nest-size
 nest-size
 1
 10
-10.0
+7.0
 1
 1
 NIL
@@ -633,7 +631,7 @@ nest-scent
 nest-scent
 100
 500
-250.0
+100.0
 10
 1
 NIL
