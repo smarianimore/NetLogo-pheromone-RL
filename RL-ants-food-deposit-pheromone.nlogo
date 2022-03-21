@@ -63,8 +63,8 @@ to setup
     qlearningextension:state-def["isFoodPatch" "hasNotFood" "isNestPatch" "followingNest"]   ;; SM: IS "lastAction" NEEDED??
     ;qlearningextension:state-def["hasNotFood" "followingNest"]   ;; SM: IS "lastAction" NEEDED??
     ;(qlearningextension:actions [pick-food] [dont-pick-food] [drop-food] [dont-drop-food] [drop-pheromone] [dont-drop-pheromone])  ;; SM: IS THIS WRONG AND SHOULD USE ONLY 1 ALTERNATIVE "do-nothing"?
-    (qlearningextension:actions [pick-food] [drop-food] [drop-pheromone] [do-nothing])  ;; SM: IS THIS WRONG AND SHOULD USE ONLY 1 ALTERNATIVE "do-nothing"?
-    ;(qlearningextension:actions [drop-pheromone] [dont-drop-pheromone])  ;; SM: IS THIS WRONG AND SHOULD USE ONLY 1 ALTERNATIVE "do-nothing"?
+    (qlearningextension:actions [pick-food] [drop-food] [drop-pheromone] [do-nothing])
+    ;(qlearningextension:actions [drop-pheromone] [dont-drop-pheromone])
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.9]
@@ -156,7 +156,7 @@ to-report rewardFunc  ;; SM called at end of episode
   ;]
   ;if (length-rew = 0) [ set length-rew 1 ]
   ;let reward rew-sum / length-rew  ;; SM: THERE IS A PROBLEM HERE: EVERY EPISODE (that now is every tick) ANTS GET REWARDED, EVEN IF THEY DIDN'T HAVE THE CHANCE TO DO THE RIGHT ACTION (because they are not on a food patch)
-  let reward -1
+  let reward -10
   if isFoodPatch and (not hasNotFood) and lastAction = "pick-food"
     [ set reward 100 ]
   if isFoodPatch and (not hasNotFood) and (not (lastAction = "pick-food"))
@@ -514,7 +514,7 @@ evaporation-rate
 evaporation-rate
 0.0
 99.0
-10.0
+95.0
 5
 1
 NIL
@@ -912,7 +912,7 @@ discount
 discount
 0
 1
-0.9
+0.75
 0.05
 1
 NIL
