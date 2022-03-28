@@ -110,7 +110,7 @@ population
 population
 0
 1000
-500.0
+20.0
 10
 1
 NIL
@@ -272,16 +272,16 @@ HORIZONTAL
 
 PLOT
 728
-281
+214
 1072
 522
 clusters
-NIL
-NIL
+ticks
+# of turtles in cluster-radius
 0.0
 10.0
 0.0
-10.0
+2.0
 true
 true
 "" ""
