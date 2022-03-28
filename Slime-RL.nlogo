@@ -1,34 +1,56 @@
+extensions[qlearningextension]
+
 patches-own [chemical]
+
+turtles-own [cluster]
 
 to setup
   clear-all
   create-turtles population
   [ set color red
     set size 2  ;; easier to see
-    setxy random-xcor random-ycor ]
+    setxy random-xcor random-ycor
+    if label?
+      [ set label who ]
+    set-current-plot "clusters"
+    create-temporary-plot-pen (word who)
+    let p-color scale-color one-of base-colors who 0 count turtles
+    set-plot-pen-color p-color ]
   ask patches [ set chemical 0 ]
   reset-ticks
 end
 
 to go
   ask turtles
-  [ ifelse chemical > sniff-threshold                  ;; ignore pheromone unless there's enough here
+  [ set cluster count turtles in-radius cluster-radius
+    ifelse chemical > sniff-threshold                  ;; ignore pheromone unless there's enough here
       [ move-toward-chemical ]
       [ random-walk ]
-    drop-chemical ]                    ;; drop chemical onto patch
+    drop-chemical                    ;; drop chemical onto patch
+    set-current-plot "clusters"
+    set-current-plot-pen (word who)
+    plot cluster ]
   diffuse chemical diffuse-share                               ;; diffuse chemical to neighboring patches
   ask patches
   [ set chemical chemical * evaporation-rate                    ;; evaporate chemical
-    set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
+    set pcolor scale-color green chemical 0.1 3 ]   ;; update display of chemical concentration
   tick
+
+  ;let c-sum 0
+  ;foreach sort turtles [ t ->
+  ;  set c-sum c-sum + cluster
+  ;]
+  ;let c-avg c-sum / population
+  ;set-current-plot "clusters"
+  ;plot c-avg
 end
 
 to move-toward-chemical  ;; turtle procedure
   ;; examine the patch ahead of you and two nearby patches;
   ;; turn in the direction of greatest chemical
-  let ahead [chemical] of patch-ahead 1
-  let myright [chemical] of patch-right-and-ahead sniff-angle 1
-  let myleft [chemical] of patch-left-and-ahead sniff-angle 1
+  let ahead [chemical] of patch-ahead look-ahead
+  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
+  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
   ifelse (myright >= ahead) and (myright >= myleft)
   [ rt sniff-angle ]
   [ if myleft >= ahead
@@ -38,7 +60,9 @@ to move-toward-chemical  ;; turtle procedure
 end
 
 to random-walk
-  rt random-float wiggle-angle
+  ifelse (random-float 1) > 0.5
+    [ rt random-float wiggle-angle ]
+    [ lt random-float wiggle-angle ]
   fd 1
 end
 
@@ -180,7 +204,7 @@ chemical-drop
 chemical-drop
 1
 10
-2.0
+3.0
 1
 1
 NIL
@@ -211,10 +235,69 @@ evaporation-rate
 0
 1
 0.9
-0.1
+0.05
 1
 NIL
 HORIZONTAL
+
+SLIDER
+6
+176
+197
+209
+look-ahead
+look-ahead
+1
+10
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+732
+136
+904
+169
+cluster-radius
+cluster-radius
+1
+50
+10.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+728
+281
+1072
+522
+clusters
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" ""
+
+SWITCH
+733
+174
+836
+207
+label?
+label?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
