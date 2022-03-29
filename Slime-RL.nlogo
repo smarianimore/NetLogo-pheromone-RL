@@ -12,10 +12,7 @@ to setup
     setxy random-xcor random-ycor
     if label?
       [ set label who ]
-    set-current-plot "clusters"
-    create-temporary-plot-pen (word who)
-    let p-color scale-color one-of base-colors who 0 count turtles
-    set-plot-pen-color p-color ]
+    setup-individual-plot ]
   ask patches [ set chemical 0 ]
   reset-ticks
 end
@@ -27,9 +24,7 @@ to go
       [ move-toward-chemical ]
       [ random-walk ]
     drop-chemical                    ;; drop chemical onto patch
-    set-current-plot "clusters"
-    set-current-plot-pen (word who)
-    plot cluster ]
+    plot-individual ]
   diffuse chemical diffuse-share                               ;; diffuse chemical to neighboring patches
   ask patches
   [ set chemical chemical * evaporation-rate                    ;; evaporate chemical
@@ -70,6 +65,18 @@ to drop-chemical
   set chemical chemical + chemical-drop
 end
 
+to setup-individual-plot
+  set-current-plot "clusters"
+  create-temporary-plot-pen (word who)
+  let p-color scale-color one-of base-colors who 0 count turtles
+  set-plot-pen-color p-color
+end
+
+to plot-individual
+  set-current-plot "clusters"
+  set-current-plot-pen (word who)
+  plot cluster
+end
 
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
