@@ -33,8 +33,8 @@ to setup-learning
   set episode 0
 
   ask turtles [
-    qlearningextension:state-def ["in-cluster"]  ; or "chemical-here"? or "in-cluster"? or all?
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
+    qlearningextension:state-def ["p-chemical" "in-cluster"]  ;; "p-chemical"? or "chemical-here"? or "in-cluster"? or all?
+    (qlearningextension:actions [dont-drop-chemical] [drop-chemical])
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.95]
@@ -55,10 +55,8 @@ to go
   [ check-cluster
     ;plot-individual
     ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
-      [ set chemical-here true
-        move-toward-chemical ]
-      [ set chemical-here false
-        random-walk ]
+      [ move-toward-chemical ]
+      [ random-walk ]
     drop-chemical ]                                ;; drop chemical onto patch
 
   diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
@@ -79,8 +77,10 @@ to learn
     [ check-cluster
       set p-chemical [chemical] of patch-here
       ifelse chemical > sniff-threshold
-      [ set chemical-here true ]
-      [ set chemical-here false ]
+      [ set chemical-here true
+        move-toward-chemical ]
+      [ set chemical-here false
+        random-walk ]
       qlearningextension:learning
       ;do-log "Q-table: " (qlearningextension:get-qtable)
       ;plot-individual
@@ -166,6 +166,10 @@ end
 
 to drop-chemical
   set chemical chemical + chemical-drop
+end
+
+to dont-drop-chemical
+
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -497,7 +501,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-350.0
+500.0
 1
 0
 Number
@@ -508,7 +512,7 @@ INPUTBOX
 1519
 423
 episodes
-20.0
+50.0
 1
 0
 Number
