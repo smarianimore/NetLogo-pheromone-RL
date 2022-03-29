@@ -1,6 +1,6 @@
 extensions[qlearningextension]
 
-globals [g-reward-list]
+globals [g-reward-list episode]
 
 patches-own [chemical]
 
@@ -30,6 +30,7 @@ end
 to setup-learning
   setup
   set g-reward-list []
+  set episode 0
 
   ask turtles [
     qlearningextension:state-def ["p-chemical"]  ; or "chemical-here"? or "in-cluster"? or all?
@@ -69,38 +70,41 @@ to go
 
   let c-avg avg-cluster?
   plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
-  do-log "average cluster size in # of turtles: " c-avg
+  log-ticks "average cluster size in # of turtles: " c-avg
 end
 
 to learn
-  ask turtles
-  [ check-cluster
-    set p-chemical [chemical] of patch-here
-    ifelse chemical > sniff-threshold
+  if episode < episodes
+  [ ask turtles
+    [ check-cluster
+      set p-chemical [chemical] of patch-here
+      ifelse chemical > sniff-threshold
       [ set chemical-here true ]
       [ set chemical-here false ]
-    qlearningextension:learning
-    ;do-log "Q-table: " (qlearningextension:get-qtable)
-    ;plot-individual
+      qlearningextension:learning
+      ;do-log "Q-table: " (qlearningextension:get-qtable)
+      ;plot-individual
+    ]
+
+    diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
+    ask patches
+    [ set chemical chemical * evaporation-rate       ;; evaporate chemical
+      set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
+
+    let c-avg avg-cluster?
+    plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
+    log-ticks "average cluster size in # of turtles: " c-avg
+
+    if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+      let g-avg-rew avg? g-reward-list
+      plot-global "Average reward per episode" "average reward" g-avg-rew
+      log-episodes "average reward per episode: " g-avg-rew
+      set g-reward-list []
+      set episode episode + 1
+    ]
+
+    tick
   ]
-
-  diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
-  ask patches
-  [ set chemical chemical * evaporation-rate       ;; evaporate chemical
-    set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
-
-  if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
-    let g-avg-rew avg? g-reward-list
-    plot-global "Average reward per episode" "average reward" g-avg-rew
-    do-log "average reward per episode: " g-avg-rew
-    set g-reward-list []
-  ]
-
-  let c-avg avg-cluster?
-  plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
-  do-log "average cluster size in # of turtles: " c-avg
-
-  tick
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -123,8 +127,6 @@ to-report isEndState
 end
 
 to resetEpisode
-  setxy random-xcor random-ycor
-
   let avg-rew avg? reward-list
   set g-reward-list lput avg-rew g-reward-list
 
@@ -134,6 +136,8 @@ to resetEpisode
   set reward-list []
   ask patch-here [ set chemical 0 ]
   ask [neighbors] of patch-here [ set chemical 0 ]
+
+  setxy random-xcor random-ycor
 end
 
 ;;;;;;;;;;;;;;;;
@@ -193,9 +197,13 @@ to plot-global [p-name pen-name what]
   plot what
 end
 
-to do-log [msg what]
+to log-ticks [msg what]
   if (ticks > 1) and ((ticks mod print-every) = 0)
     [ type "t" type ticks type ") " type msg print what ]
+end
+
+to log-episodes [msg what]
+  type "e" type episode type ") " type msg print what
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -500,7 +508,7 @@ INPUTBOX
 513
 589
 episodes
-10.0
+2.0
 1
 0
 Number
