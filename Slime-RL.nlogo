@@ -1,8 +1,10 @@
 extensions[qlearningextension]
 
+globals [g-reward-list]
+
 patches-own [chemical]
 
-turtles-own [cluster]
+turtles-own [cluster in-cluster chemical-here p-chemical reward-list]
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; SETUP procedures ;;
@@ -10,6 +12,7 @@ turtles-own [cluster]
 
 to setup
   clear-all
+
   create-turtles population
   [ set color red
     set size 2                    ;; easier to see
@@ -17,9 +20,29 @@ to setup
     ;setup-individual-plot
     if label?
       [ set label who ] ]
+
   ask patches [ set chemical 0 ]
+
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
+end
+
+to setup-learning
+  setup
+  set g-reward-list []
+
+  ask turtles [
+    qlearningextension:state-def ["p-chemical"]  ; or "chemical-here"? or "in-cluster"? or all?
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
+    qlearningextension:reward [rewardFunc]
+    qlearningextension:end-episode [isEndState] resetEpisode
+    qlearningextension:action-selection "e-greedy" [0.5 0.95]
+    qlearningextension:learning-rate 0.95
+    qlearningextension:discount-factor 0.75
+    set reward-list []
+  ]
+
+  setup-global-plot "Average reward per episode" "average reward" 0
 end
 
 ;;;;;;;;;;;;;;;;;;;
@@ -28,21 +51,89 @@ end
 
 to go
   ask turtles
-  [ set cluster count turtles in-radius cluster-radius
+  [ check-cluster
     ;plot-individual
     ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
-      [ move-toward-chemical ]
-      [ random-walk ]
+      [ set chemical-here true
+        move-toward-chemical ]
+      [ set chemical-here false
+        random-walk ]
     drop-chemical ]                                ;; drop chemical onto patch
+
   diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
   ask patches
   [ set chemical chemical * evaporation-rate       ;; evaporate chemical
     set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
+
   tick
 
   let c-avg avg-cluster?
   plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
   do-log "average cluster size in # of turtles: " c-avg
+end
+
+to learn
+  ask turtles
+  [ check-cluster
+    set p-chemical [chemical] of patch-here
+    ifelse chemical > sniff-threshold
+      [ set chemical-here true ]
+      [ set chemical-here false ]
+    qlearningextension:learning
+    ;do-log "Q-table: " (qlearningextension:get-qtable)
+    ;plot-individual
+  ]
+
+  diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
+  ask patches
+  [ set chemical chemical * evaporation-rate       ;; evaporate chemical
+    set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
+
+  if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    let g-avg-rew avg? g-reward-list
+    plot-global "Average reward per episode" "average reward" g-avg-rew
+    do-log "average reward per episode: " g-avg-rew
+    set g-reward-list []
+  ]
+
+  let c-avg avg-cluster?
+  plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
+  do-log "average cluster size in # of turtles: " c-avg
+
+  tick
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LEARNING procedures ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report rewardFunc  ;; -1 penalty if not in cluster, +10 reward if in cluster
+  let reward -1
+  if cluster > cluster-threshold
+    [ set reward 10 ]
+  set reward-list lput reward reward-list
+  report reward
+end
+
+to-report isEndState
+  if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    report true
+  ]
+  report false
+end
+
+to resetEpisode
+  setxy random-xcor random-ycor
+
+  let avg-rew avg? reward-list
+  set g-reward-list lput avg-rew g-reward-list
+
+  ;set-current-plot-pen (word who)
+  ;plot avg-rew
+
+  set reward-list []
+  ask patch-here [ set chemical 0 ]
+  ask [neighbors] of patch-here [ set chemical 0 ]
 end
 
 ;;;;;;;;;;;;;;;;
@@ -74,7 +165,7 @@ to drop-chemical
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
-;; PLOT procedures ;;
+;; SHOW procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
 ;to setup-individual-plot
@@ -102,6 +193,34 @@ to plot-global [p-name pen-name what]
   plot what
 end
 
+to do-log [msg what]
+  if (ticks > 1) and ((ticks mod print-every) = 0)
+    [ type "t" type ticks type ") " type msg print what ]
+end
+
+;;;;;;;;;;;;;;;;;;;;;
+;; HELP procedures ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+to check-cluster
+  set cluster count turtles in-radius cluster-radius
+  ifelse cluster > cluster-threshold
+    [ set in-cluster true ]
+    [ set in-cluster false ]
+end
+
+to-report avg? [collection]
+  let summ 0
+  let lengthh 0
+  foreach collection [ i ->
+    set summ summ + i
+    set lengthh lengthh + 1
+  ]
+  if lengthh > 0
+    [ report summ / lengthh ]
+  report 0
+end
+
 to-report avg-cluster?
   let c-sum 0
   foreach sort turtles [ t ->
@@ -109,11 +228,6 @@ to-report avg-cluster?
   ]
   let c-avg c-sum / population
   report c-avg
-end
-
-to do-log [msg what]
-  if (ticks mod print-every) = 0
-    [ type "t" type ticks type ") " type msg print what ]
 end
 
 ; Copyright 1997 Uri Wilensky.
@@ -400,13 +514,47 @@ Average reward per episode
 episodes
 average reward
 0.0
-10.0
+1.0
 0.0
-10.0
+1.0
 true
 true
 "" ""
 PENS
+
+BUTTON
+524
+542
+648
+575
+NIL
+setup-learning
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+651
+542
+714
+575
+NIL
+learn
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
