@@ -4,41 +4,50 @@ patches-own [chemical]
 
 turtles-own [cluster]
 
+;;;;;;;;;;;;;;;;;;;;;;
+;; SETUP procedures ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
 to setup
   clear-all
   create-turtles population
   [ set color red
-    set size 2  ;; easier to see
+    set size 2                    ;; easier to see
     setxy random-xcor random-ycor
+    ;setup-individual-plot
     if label?
-      [ set label who ]
-    setup-individual-plot ]
+      [ set label who ] ]
   ask patches [ set chemical 0 ]
   reset-ticks
+  setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
 end
+
+;;;;;;;;;;;;;;;;;;;
+;; GO procedures ;;
+;;;;;;;;;;;;;;;;;;;
 
 to go
   ask turtles
   [ set cluster count turtles in-radius cluster-radius
-    ifelse chemical > sniff-threshold                  ;; ignore pheromone unless there's enough here
+    ;plot-individual
+    ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
       [ move-toward-chemical ]
       [ random-walk ]
-    drop-chemical                    ;; drop chemical onto patch
-    plot-individual ]
-  diffuse chemical diffuse-share                               ;; diffuse chemical to neighboring patches
+    drop-chemical ]                                ;; drop chemical onto patch
+  diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
   ask patches
-  [ set chemical chemical * evaporation-rate                    ;; evaporate chemical
-    set pcolor scale-color green chemical 0.1 3 ]   ;; update display of chemical concentration
+  [ set chemical chemical * evaporation-rate       ;; evaporate chemical
+    set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
   tick
 
-  ;let c-sum 0
-  ;foreach sort turtles [ t ->
-  ;  set c-sum c-sum + cluster
-  ;]
-  ;let c-avg c-sum / population
-  ;set-current-plot "clusters"
-  ;plot c-avg
+  let c-avg avg-cluster?
+  plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
+  do-log "average cluster size in # of turtles: " c-avg
 end
+
+;;;;;;;;;;;;;;;;
+;; RL actions ;;
+;;;;;;;;;;;;;;;;
 
 to move-toward-chemical  ;; turtle procedure
   ;; examine the patch ahead of you and two nearby patches;
@@ -50,8 +59,7 @@ to move-toward-chemical  ;; turtle procedure
   [ rt sniff-angle ]
   [ if myleft >= ahead
     [ lt sniff-angle ] ]
-    ;; default: don't turn
-  fd 1
+  fd 1                    ;; default: don't turn
 end
 
 to random-walk
@@ -65,17 +73,47 @@ to drop-chemical
   set chemical chemical + chemical-drop
 end
 
-to setup-individual-plot
-  set-current-plot "clusters"
-  create-temporary-plot-pen (word who)
-  let p-color scale-color one-of base-colors who 0 count turtles
-  set-plot-pen-color p-color
+;;;;;;;;;;;;;;;;;;;;;
+;; PLOT procedures ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+;to setup-individual-plot
+;  set-current-plot "Average cluster size in # of turtles within cluster-radius"
+;  create-temporary-plot-pen (word who)
+;  let p-color scale-color one-of base-colors who 0 count turtles
+;  set-plot-pen-color p-color
+;end
+
+to setup-global-plot [p-name pen-name pen-color]
+  set-current-plot p-name
+  create-temporary-plot-pen pen-name
+  set-plot-pen-color pen-color
 end
 
-to plot-individual
-  set-current-plot "clusters"
-  set-current-plot-pen (word who)
-  plot cluster
+;to plot-individual
+;  set-current-plot "Average cluster size in # of turtles within cluster-radius"
+;  set-current-plot-pen (word who)
+;  plot cluster
+;end
+
+to plot-global [p-name pen-name what]
+  set-current-plot p-name
+  set-current-plot-pen pen-name
+  plot what
+end
+
+to-report avg-cluster?
+  let c-sum 0
+  foreach sort turtles [ t ->
+    set c-sum c-sum + ([cluster] of t)
+  ]
+  let c-avg c-sum / population
+  report c-avg
+end
+
+to do-log [msg what]
+  if (ticks mod print-every) = 0
+    [ type "t" type ticks type ") " type msg print what ]
 end
 
 ; Copyright 1997 Uri Wilensky.
@@ -117,7 +155,7 @@ population
 population
 0
 1000
-20.0
+500.0
 10
 1
 NIL
@@ -211,7 +249,7 @@ chemical-drop
 chemical-drop
 1
 10
-3.0
+2.0
 1
 1
 NIL
@@ -277,24 +315,6 @@ cluster-radius
 NIL
 HORIZONTAL
 
-PLOT
-728
-214
-1072
-522
-clusters
-ticks
-# of turtles in cluster-radius
-0.0
-10.0
-0.0
-2.0
-true
-true
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" ""
-
 SWITCH
 733
 174
@@ -305,6 +325,34 @@ label?
 1
 1
 -1000
+
+PLOT
+728
+214
+1203
+522
+Average cluster size in # of turtles within cluster-radius
+ticks
+# of turtles
+0.0
+10.0
+0.0
+2.0
+true
+true
+"" ""
+PENS
+
+INPUTBOX
+29
+462
+178
+522
+print-every
+100.0
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?
