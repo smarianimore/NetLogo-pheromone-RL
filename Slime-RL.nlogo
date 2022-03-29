@@ -33,13 +33,13 @@ to setup-learning
   set episode 0
 
   ask turtles [
-    qlearningextension:state-def ["p-chemical"]  ; or "chemical-here"? or "in-cluster"? or all?
+    qlearningextension:state-def ["in-cluster"]  ; or "chemical-here"? or "in-cluster"? or all?
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.95]
-    qlearningextension:learning-rate 0.95
-    qlearningextension:discount-factor 0.75
+    qlearningextension:learning-rate learning-rate
+    qlearningextension:discount-factor discount-factor
     set reward-list []
   ]
 
@@ -112,11 +112,11 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to-report rewardFunc  ;; -1 penalty if not in cluster, +10 reward if in cluster
-  let reward -1
-  if cluster > cluster-threshold
-    [ set reward 10 ]
-  set reward-list lput reward reward-list
-  report reward
+  let r penalty
+  if cluster >= cluster-threshold
+    [ set r reward ]
+  set reward-list lput r reward-list
+  report r
 end
 
 to-report isEndState
@@ -244,11 +244,11 @@ end
 GRAPHICS-WINDOW
 210
 10
-723
-524
+728
+529
 -1
 -1
-5.0
+10.0
 1
 10
 1
@@ -258,10 +258,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--50
-50
--50
-50
+-25
+25
+-25
+25
 1
 1
 1
@@ -277,7 +277,7 @@ population
 population
 0
 1000
-500.0
+100.0
 10
 1
 NIL
@@ -423,10 +423,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-211
-594
-383
-627
+1216
+65
+1388
+98
 cluster-radius
 cluster-radius
 1
@@ -438,10 +438,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-212
-632
-315
-665
+1217
+103
+1320
+136
 label?
 label?
 1
@@ -477,38 +477,38 @@ print-every
 Number
 
 SLIDER
-387
-594
-559
-627
+1392
+65
+1564
+98
 cluster-threshold
 cluster-threshold
 0
-500
-50.0
-10
+250
+20.0
+5
 1
 NIL
 HORIZONTAL
 
 INPUTBOX
-211
-529
-360
-589
+1217
+363
+1366
+423
 ticks-per-episode
-500.0
+350.0
 1
 0
 Number
 
 INPUTBOX
-364
-529
-513
-589
+1370
+363
+1519
+423
 episodes
-2.0
+20.0
 1
 0
 Number
@@ -531,10 +531,10 @@ true
 PENS
 
 BUTTON
-524
-542
-648
-575
+1216
+324
+1340
+357
 NIL
 setup-learning
 NIL
@@ -548,10 +548,10 @@ NIL
 1
 
 BUTTON
-651
-542
-714
-575
+1343
+324
+1406
+357
 NIL
 learn
 T
@@ -563,6 +563,66 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+1218
+430
+1390
+463
+learning-rate
+learning-rate
+0
+1
+0.95
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1218
+470
+1390
+503
+discount-factor
+discount-factor
+0
+1
+0.75
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1399
+451
+1571
+484
+reward
+reward
+10
+100
+50.0
+5
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1400
+489
+1572
+522
+penalty
+penalty
+-100
+0
+0.0
+5
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
