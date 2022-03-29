@@ -301,10 +301,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-732
-136
-904
-169
+211
+594
+383
+627
 cluster-radius
 cluster-radius
 1
@@ -316,10 +316,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-733
-174
-836
-207
+212
+632
+315
+665
 label?
 label?
 1
@@ -327,17 +327,17 @@ label?
 -1000
 
 PLOT
-728
-214
-1203
-522
+735
+11
+1210
+319
 Average cluster size in # of turtles within cluster-radius
 ticks
 # of turtles
 0.0
 10.0
 0.0
-2.0
+10.0
 true
 true
 "" ""
@@ -353,6 +353,60 @@ print-every
 1
 0
 Number
+
+SLIDER
+387
+594
+559
+627
+cluster-threshold
+cluster-threshold
+0
+500
+50.0
+10
+1
+NIL
+HORIZONTAL
+
+INPUTBOX
+211
+529
+360
+589
+ticks-per-episode
+500.0
+1
+0
+Number
+
+INPUTBOX
+364
+529
+513
+589
+episodes
+10.0
+1
+0
+Number
+
+PLOT
+736
+324
+1210
+632
+Average reward per episode
+episodes
+average reward
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
 
 @#$#@#$#@
 ## WHAT IS IT?
