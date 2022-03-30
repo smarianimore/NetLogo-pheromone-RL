@@ -34,7 +34,7 @@ to setup-learning
 
   ask turtles [
     qlearningextension:state-def ["p-chemical" "in-cluster"]  ;; "p-chemical"? or "chemical-here"? or "in-cluster"? or all?
-    (qlearningextension:actions [dont-drop-chemical] [drop-chemical])
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.95]
@@ -77,10 +77,8 @@ to learn
     [ check-cluster
       set p-chemical [chemical] of patch-here
       ifelse chemical > sniff-threshold
-      [ set chemical-here true
-        move-toward-chemical ]
-      [ set chemical-here false
-        random-walk ]
+      [ set chemical-here true ]
+      [ set chemical-here false ]
       qlearningextension:learning
       ;do-log "Q-table: " (qlearningextension:get-qtable)
       ;plot-individual
@@ -512,7 +510,7 @@ INPUTBOX
 1519
 423
 episodes
-50.0
+10.0
 1
 0
 Number
