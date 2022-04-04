@@ -1,6 +1,6 @@
 extensions[qlearningextension]
 
-globals [g-reward-list episode]
+globals [g-reward-list episode is-there-cluster]
 
 patches-own [chemical]
 
@@ -31,10 +31,12 @@ to setup-learning
   setup
   set g-reward-list []
   set episode 0
+  set is-there-cluster false
 
   ask turtles [
-    qlearningextension:state-def ["p-chemical" "in-cluster"]  ;; "p-chemical"? or "chemical-here"? or "in-cluster"? or all?
+    qlearningextension:state-def ["p-chemical" "cluster"]  ;; "p-chemical"? or "chemical-here"? or "cluster"? or "in-cluster"? or all?
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
+    ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.95]
@@ -78,7 +80,9 @@ to learn
       set p-chemical [chemical] of patch-here
       ifelse chemical > sniff-threshold
       [ set chemical-here true ]
+        ;move-toward-chemical ]
       [ set chemical-here false ]
+        ;random-walk ]
       qlearningextension:learning
       ;do-log "Q-table: " (qlearningextension:get-qtable)
       ;plot-individual
@@ -111,14 +115,15 @@ end
 
 to-report rewardFunc  ;; -1 penalty if not in cluster, +10 reward if in cluster
   let r penalty
-  if cluster >= cluster-threshold
+  if in-cluster
     [ set r reward ]
   set reward-list lput r reward-list
   report r
 end
 
 to-report isEndState
-  if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+  if is-there-cluster = true [
+  ;if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
     report true
   ]
   report false
@@ -215,8 +220,10 @@ end
 to check-cluster
   set cluster count turtles in-radius cluster-radius
   ifelse cluster > cluster-threshold
-    [ set in-cluster true ]
-    [ set in-cluster false ]
+    [ set in-cluster true
+      set is-there-cluster true ]
+    [ set in-cluster false
+      set is-there-cluster false ]
 end
 
 to-report avg? [collection]
@@ -279,7 +286,7 @@ population
 population
 0
 1000
-100.0
+50.0
 10
 1
 NIL
@@ -373,7 +380,7 @@ chemical-drop
 chemical-drop
 1
 10
-2.0
+3.0
 1
 1
 NIL
@@ -499,7 +506,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-500.0
+300.0
 1
 0
 Number
@@ -510,7 +517,7 @@ INPUTBOX
 1519
 423
 episodes
-10.0
+30.0
 1
 0
 Number
@@ -620,7 +627,7 @@ penalty
 penalty
 -100
 0
-0.0
+-5.0
 5
 1
 NIL
