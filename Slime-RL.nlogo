@@ -4,7 +4,7 @@ globals [g-reward-list episode is-there-cluster]
 
 patches-own [chemical]
 
-turtles-own [cluster in-cluster chemical-here p-chemical reward-list]
+turtles-own [ticks-in-cluster cluster in-cluster chemical-here p-chemical reward-list]
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; SETUP procedures ;;
@@ -17,6 +17,7 @@ to setup
   [ set color red
     set size 2                    ;; easier to see
     setxy random-xcor random-ycor
+    set ticks-in-cluster 0
     ;setup-individual-plot
     if label?
       [ set label who ] ]
@@ -37,12 +38,13 @@ to setup-learning
     qlearningextension:state-def ["p-chemical" "cluster"]  ;; "p-chemical"? or "chemical-here"? or "cluster"? or "in-cluster"? or all?
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
-    qlearningextension:reward [rewardFunc]
+    qlearningextension:reward [rewardFunc2]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.5 0.9]
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
     set reward-list []
+    set ticks-in-cluster 0
   ]
 
   setup-global-plot "Average reward per episode" "average reward" 0
@@ -97,8 +99,8 @@ to learn
     plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
     log-ticks "average cluster size in # of turtles: " c-avg
 
-    ;if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
-    if (ticks > 1) and (is-there-cluster = true) [
+    if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    ;if (ticks > 1) and (is-there-cluster = true) [
       set is-there-cluster false
       let g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
@@ -125,9 +127,14 @@ to-report rewardFunc
   report r
 end
 
+to-report rewardFunc2
+  set reward-list lput ticks-in-cluster reward-list
+  report ticks-in-cluster
+end
+
 to-report isEndState
-  if is-there-cluster = true [
-  ;if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+  ;if is-there-cluster = true [
+  if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
     ;set is-there-cluster false
     report true
   ]
@@ -142,6 +149,7 @@ to resetEpisode
   ;plot avg-rew
 
   set reward-list []
+  set ticks-in-cluster 0
   ask patch-here [ set chemical 0 ]
   ask [neighbors] of patch-here [ set chemical 0 ]
 
@@ -226,7 +234,8 @@ to check-cluster
   set cluster count turtles in-radius cluster-radius
   ifelse cluster > cluster-threshold
     [ set in-cluster true
-      set is-there-cluster true ]
+      set is-there-cluster true
+      set ticks-in-cluster ticks-in-cluster + 1 ]
     [ set in-cluster false ]
 end
 
@@ -510,7 +519,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-250.0
+300.0
 1
 0
 Number
@@ -521,7 +530,7 @@ INPUTBOX
 1519
 423
 episodes
-1000.0
+100.0
 1
 0
 Number
