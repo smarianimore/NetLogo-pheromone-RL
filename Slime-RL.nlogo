@@ -39,7 +39,7 @@ to setup-learning
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
     qlearningextension:reward [rewardFunc]
     qlearningextension:end-episode [isEndState] resetEpisode
-    qlearningextension:action-selection "e-greedy" [0.5 0.95]
+    qlearningextension:action-selection "e-greedy" [0.5 0.9]
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
     set reward-list []
@@ -97,13 +97,17 @@ to learn
     plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
     log-ticks "average cluster size in # of turtles: " c-avg
 
-    if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    ;if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    if (ticks > 1) and (is-there-cluster = true) [
+      set is-there-cluster false
       let g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       set g-reward-list []
       set episode episode + 1
     ]
+
+    ;ask turtles [ qlearningextension:learning ]
 
     tick
   ]
@@ -113,9 +117,9 @@ end
 ;; LEARNING procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report rewardFunc  ;; -1 penalty if not in cluster, +10 reward if in cluster
+to-report rewardFunc
   let r penalty
-  if in-cluster
+  if in-cluster = true
     [ set r reward ]
   set reward-list lput r reward-list
   report r
@@ -124,6 +128,7 @@ end
 to-report isEndState
   if is-there-cluster = true [
   ;if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    ;set is-there-cluster false
     report true
   ]
   report false
@@ -222,8 +227,7 @@ to check-cluster
   ifelse cluster > cluster-threshold
     [ set in-cluster true
       set is-there-cluster true ]
-    [ set in-cluster false
-      set is-there-cluster false ]
+    [ set in-cluster false ]
 end
 
 to-report avg? [collection]
@@ -251,10 +255,10 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-728
-529
+207
+112
+725
+631
 -1
 -1
 10.0
@@ -380,7 +384,7 @@ chemical-drop
 chemical-drop
 1
 10
-3.0
+2.0
 1
 1
 NIL
@@ -410,7 +414,7 @@ evaporation-rate
 evaporation-rate
 0
 1
-0.9
+0.95
 0.05
 1
 NIL
@@ -495,7 +499,7 @@ cluster-threshold
 0
 250
 20.0
-5
+1
 1
 NIL
 HORIZONTAL
@@ -506,7 +510,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-300.0
+250.0
 1
 0
 Number
@@ -517,7 +521,7 @@ INPUTBOX
 1519
 423
 episodes
-30.0
+1000.0
 1
 0
 Number
@@ -582,7 +586,7 @@ learning-rate
 learning-rate
 0
 1
-0.95
+0.9
 0.05
 1
 NIL
@@ -597,7 +601,7 @@ discount-factor
 discount-factor
 0
 1
-0.75
+0.9
 0.05
 1
 NIL
@@ -612,8 +616,8 @@ reward
 reward
 10
 100
-50.0
-5
+10.0
+1
 1
 NIL
 HORIZONTAL
@@ -627,8 +631,8 @@ penalty
 penalty
 -100
 0
--5.0
-5
+-1.0
+1
 1
 NIL
 HORIZONTAL
