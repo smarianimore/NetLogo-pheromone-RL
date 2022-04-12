@@ -1,10 +1,31 @@
 extensions[qlearningextension]
 
-globals [g-reward-list episode is-there-cluster]
+globals [
+  g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
+  episode               ;; number of episodes run so fare (including the running one)
+  is-there-cluster]     ;; is there at least one cluser in the whole environment?
 
-patches-own [chemical]
+patches-own [chemical]  ;; amount of pheromone in the patch
 
-turtles-own [ticks-in-cluster cluster in-cluster chemical-here p-chemical reward-list]
+Breed[Learners Learner]
+
+Learners-own [
+  ;l-ticks-in-cluster
+  ;l-cluster
+  ;l-in-cluster
+  chemical-here         ;; whether there is pheromone on the patch-here
+  p-chemical            ;; amount of pheromone on the patch-here
+  reward-list           ;; list of rewards got so far
+]
+
+turtles-own [
+  ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
+  cluster               ;; number of turtles within cluster-radius
+  in-cluster            ;; whether the turtle is within a cluster (cluster > cluster-threshold)
+  ;chemical-here
+  ;p-chemical
+  ;reward-list
+]
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; SETUP procedures ;;
@@ -14,15 +35,17 @@ to setup
   clear-all
 
   create-turtles population
-  [ set color red
+  [ set color blue
     set size 2                    ;; easier to see
     setxy random-xcor random-ycor
     set ticks-in-cluster 0
-    ;setup-individual-plot
+    set cluster 0
+    set in-cluster false
     if label?
       [ set label who ] ]
 
   ask patches [ set chemical 0 ]
+  set is-there-cluster false
 
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
@@ -32,19 +55,30 @@ to setup-learning
   setup
   set g-reward-list []
   set episode 0
-  set is-there-cluster false
 
-  ask turtles [
-    qlearningextension:state-def ["p-chemical" "cluster"]  ;; "p-chemical"? or "chemical-here"? or "cluster"? or "in-cluster"? or all?
+  create-Learners learning-turtles
+  [ set color red
+    set size 2                    ;; easier to see
+    setxy random-xcor random-ycor
+    ;set l-ticks-in-cluster 0
+    ;set l-cluster 0
+    ;set l-in-cluster false
+    set chemical-here false
+    set p-chemical 0
+    set reward-list []
+    if label?
+      [ set label who ] ]
+
+  ask Learners [
+    ;qlearningextension:state-def ["p-chemical" "cluster"] reporter  ;; reporter could report variables that the agent does not own
+    qlearningextension:state-def ["chemical-here" "in-cluster"]  ;; "p-chemical"? or "chemical-here"? or "cluster"? or "in-cluster"? or all?
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
-    qlearningextension:reward [rewardFunc2]
+    qlearningextension:reward [rewardFunc3]
     qlearningextension:end-episode [isEndState] resetEpisode
-    qlearningextension:action-selection "e-greedy" [0.5 0.9]
-    qlearningextension:learning-rate learning-rate
-    qlearningextension:discount-factor discount-factor
-    set reward-list []
-    set ticks-in-cluster 0
+    qlearningextension:action-selection "e-greedy" [0.75 0.9]  ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
+    qlearningextension:learning-rate learning-rate  ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
+    qlearningextension:discount-factor discount-factor  ;; 0 = only care about immediate reward, 1 = only care about future reward
   ]
 
   setup-global-plot "Average reward per episode" "average reward" 0
@@ -68,16 +102,25 @@ to go
   [ set chemical chemical * evaporation-rate       ;; evaporate chemical
     set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
 
-  tick
-
   let c-avg avg-cluster?
   plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
   log-ticks "average cluster size in # of turtles: " c-avg
+
+  tick
 end
 
 to learn
   if episode < episodes
   [ ask turtles
+    [ if not (breed = Learners)
+        [ check-cluster
+        ifelse chemical > sniff-threshold
+          [ move-toward-chemical ]
+          [ random-walk ]
+        drop-chemical ]
+    ]
+
+    ask Learners
     [ check-cluster
       set p-chemical [chemical] of patch-here
       ifelse chemical > sniff-threshold
@@ -85,15 +128,13 @@ to learn
         ;move-toward-chemical ]
       [ set chemical-here false ]
         ;random-walk ]
-      qlearningextension:learning
-      ;do-log "Q-table: " (qlearningextension:get-qtable)
-      ;plot-individual
+      qlearningextension:learning  ;; select an action to the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
     ]
 
-    diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
+    diffuse chemical diffuse-share
     ask patches
-    [ set chemical chemical * evaporation-rate       ;; evaporate chemical
-      set pcolor scale-color green chemical 0.1 3 ]  ;; update display of chemical concentration
+    [ set chemical chemical * evaporation-rate
+      set pcolor scale-color green chemical 0.1 3 ]
 
     let c-avg avg-cluster?
     plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
@@ -107,10 +148,19 @@ to learn
       log-episodes "average reward per episode: " g-avg-rew
       set g-reward-list []
       set episode episode + 1
+
+      ask turtles [
+        if not (breed = Learners)
+          [
+            ask patch-here [ set chemical 0 ]
+            ask [neighbors] of patch-here [ set chemical 0 ]
+            setxy random-xcor random-ycor
+            set ticks-in-cluster 0
+            set cluster 0
+            set in-cluster false
+          ]
+      ]
     ]
-
-    ;ask turtles [ qlearningextension:learning ]
-
     tick
   ]
 end
@@ -130,6 +180,14 @@ end
 to-report rewardFunc2
   set reward-list lput ticks-in-cluster reward-list
   report ticks-in-cluster
+end
+
+to-report rewardFunc3
+  let rew 0
+  if (ticks > 0)
+    [ set rew ((ticks-in-cluster / ticks-per-episode) * reward) + (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list ]
+  report rew
 end
 
 to-report isEndState
@@ -239,6 +297,16 @@ to check-cluster
     [ set in-cluster false ]
 end
 
+;to l-check-cluster
+;  set l-cluster count turtles in-radius cluster-radius
+;  set l-cluster l-cluster + count Learners in-radius cluster-radius
+;  ifelse l-cluster > cluster-threshold
+;    [ set l-in-cluster true
+;      set is-there-cluster true
+;      set l-ticks-in-cluster l-ticks-in-cluster + 1 ]
+;    [ set l-in-cluster false ]
+;end
+
 to-report avg? [collection]
   let summ 0
   let lengthh 0
@@ -253,10 +321,17 @@ end
 
 to-report avg-cluster?
   let c-sum 0
+  let c-length 0
   foreach sort turtles [ t ->
-    set c-sum c-sum + ([cluster] of t)
+    if ([cluster] of t) > cluster-threshold
+      [
+        set c-sum c-sum + ([cluster] of t)
+        set c-length c-length + 1
+      ]
   ]
-  let c-avg c-sum / population
+  let c-avg 0
+  if not (c-length = 0)
+    [ set c-avg c-sum / c-length ]
   report c-avg
 end
 
@@ -293,7 +368,7 @@ ticks
 SLIDER
 7
 35
-199
+433
 68
 population
 population
@@ -314,7 +389,7 @@ sniff-threshold
 sniff-threshold
 0.1
 5.0
-1.0
+0.9
 0.1
 1
 NIL
@@ -393,7 +468,7 @@ chemical-drop
 chemical-drop
 1
 10
-2.0
+3.0
 1
 1
 NIL
@@ -499,15 +574,15 @@ print-every
 Number
 
 SLIDER
-1392
-65
-1564
-98
+1215
+27
+1479
+60
 cluster-threshold
 cluster-threshold
 0
 250
-20.0
+10.0
 1
 1
 NIL
@@ -623,7 +698,7 @@ SLIDER
 484
 reward
 reward
-10
+1
 100
 10.0
 1
@@ -645,6 +720,31 @@ penalty
 1
 NIL
 HORIZONTAL
+
+SLIDER
+1216
+285
+1388
+318
+learning-turtles
+learning-turtles
+1
+100
+5.0
+1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+1220
+510
+1394
+636
+learning-rate) 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)\n\ndiscount-factor) 0 = only care about immediate reward, 1 = only care about future reward
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
