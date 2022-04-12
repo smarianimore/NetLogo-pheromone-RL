@@ -74,7 +74,7 @@ to setup-learning
     qlearningextension:state-def ["chemical-here" "in-cluster"]  ;; "p-chemical"? or "chemical-here"? or "cluster"? or "in-cluster"? or all?
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
-    qlearningextension:reward [rewardFunc3]
+    qlearningextension:reward [rewardFunc6]
     qlearningextension:end-episode [isEndState] resetEpisode
     qlearningextension:action-selection "e-greedy" [0.75 0.9]  ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
     qlearningextension:learning-rate learning-rate  ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
@@ -169,7 +169,7 @@ end
 ;; LEARNING procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report rewardFunc
+to-report rewardFunc1  ;; fixed reward if in cluster, otherwise penalty
   let r penalty
   if in-cluster = true
     [ set r reward ]
@@ -177,15 +177,52 @@ to-report rewardFunc
   report r
 end
 
-to-report rewardFunc2
+to-report rewardFunc2  ;; monotonic reward based on ticks-in-cluster
   set reward-list lput ticks-in-cluster reward-list
   report ticks-in-cluster
 end
 
-to-report rewardFunc3
+to-report rewardFunc3  ;; reward and penalty based on ticks-in-cluster
   let rew 0
   if (ticks > 0)
     [ set rew ((ticks-in-cluster / ticks-per-episode) * reward) + (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list ]
+  report rew
+end
+
+to-report rewardFunc4  ;; reward based on both ticks-in-cluster and cluster size, penalty based on ticks-in-cluster
+  let rew cluster
+  if (ticks > 0)
+    [ set rew
+        ((ticks-in-cluster / ticks-per-episode) * (cluster / cluster-threshold) * reward)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list ]
+  report rew
+end
+
+to-report rewardFunc5  ;; additive variation of rewardFunc4
+  let rew cluster
+  if (ticks > 0)
+    [ set rew
+        ((ticks-in-cluster / ticks-per-episode) * reward)
+        +
+        ((cluster / cluster-threshold) * reward)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list ]
+  report rew
+end
+
+to-report rewardFunc6  ;; variation of rewardFunc5
+  let rew cluster
+  if (ticks > 0)
+    [ set rew
+        ((ticks-in-cluster / ticks-per-episode) * reward)
+        +
+        ((cluster / cluster-threshold) * reward ^ 2)
+        +
+        ((ticks-per-episode - ticks-in-cluster) * (penalty / 10))
       set reward-list lput rew reward-list ]
   report rew
 end
@@ -374,7 +411,7 @@ population
 population
 0
 1000
-50.0
+10.0
 10
 1
 NIL
@@ -605,7 +642,7 @@ INPUTBOX
 1519
 423
 episodes
-100.0
+150.0
 1
 0
 Number
@@ -685,7 +722,7 @@ discount-factor
 discount-factor
 0
 1
-0.9
+0.75
 0.05
 1
 NIL
@@ -730,7 +767,7 @@ learning-turtles
 learning-turtles
 1
 100
-5.0
+40.0
 1
 1
 NIL
