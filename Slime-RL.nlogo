@@ -2,41 +2,35 @@ extensions[qlearningextension]
 
 globals [
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
-  episode               ;; number of episodes run so fare (including the running one)
+  episode               ;; number of episodes run so far (including the running one)
   is-there-cluster]     ;; is there at least one cluser in the whole environment?
 
 patches-own [chemical]  ;; amount of pheromone in the patch
 
-Breed[Learners Learner]
+Breed[Learners Learner] ;; turtles that are learning (in red)
 
 Learners-own [
-  ;l-ticks-in-cluster
-  ;l-cluster
-  ;l-in-cluster
-  chemical-here         ;; whether there is pheromone on the patch-here
+  chemical-here         ;; whether there is pheromone on the patch-here (boolean)
   p-chemical            ;; amount of pheromone on the patch-here
   reward-list           ;; list of rewards got so far
 ]
 
-turtles-own [
+turtles-own [  ;; these variables are also inherited by learners
   ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
   cluster               ;; number of turtles within cluster-radius
-  in-cluster            ;; whether the turtle is within a cluster (cluster > cluster-threshold)
-  ;chemical-here
-  ;p-chemical
-  ;reward-list
+  in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; SETUP procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-to setup
+to setup  ;; NO RL
   clear-all
 
   create-turtles population
   [ set color blue
-    set size 2                    ;; easier to see
+    set size 2
     setxy random-xcor random-ycor
     set ticks-in-cluster 0
     set cluster 0
@@ -51,18 +45,15 @@ to setup
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
 end
 
-to setup-learning
+to setup-learning  ;; RL
   setup
   set g-reward-list []
   set episode 0
 
   create-Learners learning-turtles
   [ set color red
-    set size 2                    ;; easier to see
+    set size 2
     setxy random-xcor random-ycor
-    ;set l-ticks-in-cluster 0
-    ;set l-cluster 0
-    ;set l-in-cluster false
     set chemical-here false
     set p-chemical 0
     set reward-list []
@@ -71,15 +62,15 @@ to setup-learning
 
   ask Learners [
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter  ;; reporter could report variables that the agent does not own
-    qlearningextension:state-def ["chemical-here" "in-cluster"]  ;; "p-chemical"? or "chemical-here"? or "cluster"? or "in-cluster"? or all?
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])
+    qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING: non-boolean state variables make the Q-table explode in size, hence Netlogo crash 'cause out of memory!
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])  ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [drop-chemical])
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
-    qlearningextension:reward [rewardFunc7]
-    qlearningextension:end-episode [isEndState] resetEpisode
-    qlearningextension:action-selection "e-greedy" [0.75 0.95]  ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
-    qlearningextension:learning-rate learning-rate  ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
-    qlearningextension:discount-factor discount-factor  ;; 0 = only care about immediate reward, 1 = only care about future reward
+    qlearningextension:reward [rewardFunc7]                                            ;; the reward function used
+    qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
+    qlearningextension:action-selection "e-greedy" [0.75 0.95]                         ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
+    qlearningextension:learning-rate learning-rate                                     ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
+    qlearningextension:discount-factor discount-factor                                 ;; 0 = only care about immediate reward, 1 = only care about future reward
   ]
 
   setup-global-plot "Average reward per episode" "average reward" 0
@@ -89,7 +80,7 @@ end
 ;; GO procedures ;;
 ;;;;;;;;;;;;;;;;;;;
 
-to go
+to go  ;; NO RL
   ask turtles
   [ check-cluster
     ;plot-individual
@@ -110,10 +101,10 @@ to go
   tick
 end
 
-to learn
+to learn  ;; RL
   if episode < episodes
   [ ask turtles
-    [ if not (breed = Learners)
+    [ if not (breed = Learners)                ;; handle non learning slimes as for 'go' procedure
         [ check-cluster
         ifelse chemical > sniff-threshold
           [ move-toward-chemical ]
@@ -125,11 +116,11 @@ to learn
     [ check-cluster
       set p-chemical [chemical] of patch-here
       ifelse chemical > sniff-threshold
-      [ set chemical-here true ]
+      [ set chemical-here true ]               ;; set state variable
         ;move-toward-chemical ]
       [ set chemical-here false ]
         ;random-walk ]
-      qlearningextension:learning  ;; select an action to the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
+      qlearningextension:learning              ;; select an action to the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
     ]
 
     diffuse chemical diffuse-share
@@ -186,7 +177,10 @@ end
 to-report rewardFunc3  ;; reward and penalty based on ticks-in-cluster
   let rew 0
   if (ticks > 0)
-    [ set rew ((ticks-in-cluster / ticks-per-episode) * reward) + (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+    [ set rew
+        ((ticks-in-cluster / ticks-per-episode) * reward)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
       set reward-list lput rew reward-list ]
   report rew
 end
@@ -796,6 +790,66 @@ learning-rate) 0 = only predefined policy (learns nothing), 1 = only latest rewa
 1
 
 @#$#@#$#@
+## GOALS
+
+Teach learning slimes (= red turtles, aka "learning-turtles") to aggregate in clusters using **basic Q-learning**.
+
+## TL;RD: quick info about RL here
+
+Roughly, the Netlogo screen is split in two:
+
+ * on left side of the simulation arena are the parameters of the basic slime mold aggregation model (actually there are more than the original model, as I extended the number of parameters directly configurable at run-time from the GUI)
+
+ * on the right side there are RL-related parameters
+
+**Important**: as the left side parameters are related to basic slime behaviours, they obviously also affect learning (e.g. decreasing the evaporation rate makes learning more difficult). Hence, **you are strongly advised to keep them fixed** once you find suitable behaviour with `setup` & `go` (no RL involved there).
+
+### NON-RL parameters
+
+As already said, these parameters describe slimes behaviour in the original model, but also indirectly affect learning, making it more difficult or easier (e.g. decreasing the evaporation rate makes learning more difficult).
+
+ * `population` controls the number of non-learning slimes (= blue turtles)
+ * `wiggle-angle` controls how much slimes steer around---no effect on learning
+ * `look-ahead` controls how far slimes can smell pheromone (higher values enable forming elongated clusters)---no effect on learning
+ * `sniff-threshold` controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)---unclear effect on learning, could be negligible
+ * `sniff-angle` controls how wide is the cone within which slimes can smell pheromone in nearby patches (higher values make slimes able to smell pheromone in a wider cone)---unclear effect on learning, could be negligible
+ * `chemical-drop` controls how much pheromone slimes deposit on their patch---unclear effect on learning, could be negligible
+ * `diffuse-share` controls how much pheromone diffuses in nearby patches (higher values mean more pheromone is diffused)---unclear effect on learning, but **likely lower values make learning more difficult**
+ * `evaporation-rate` controls how much pheromone is retained over time (higher values mean less pheromone evaporates)---unclear effect on learning, but **likely lower values make learning more difficult**
+
+### RL parameters
+
+All the following parameters have a direct effect on Q-learning of learning slimes.
+
+ * `cluster-threshold` controls the minimum number of slimes needed to consider an aggregate within `cluster-radius` a cluster (the higher the more difficult to consider an aggregate a cluster)---**the higher the more difficult to obtain a positive reward** for being within a cluster for learning slimes
+ * `cluster-radius` controls the range considered by slimes to count other slimes within a cluster (the higher the easier to form clusters, as turtles far apart are still counted together)---**the higher the easier it is to obtain a positive reward** for being within a cluster for learning slimes
+ * `learning-turtles` controls the number of learning slimes (= red turtles)
+ * `ticks-per-episode` controls how long a learning episode last (on episode end, slimes position are randomly reset and pheromone is cleared)---slimes should be given enough time to form clusters, hence it is strongly advisable to set this parameter at the very least **2x as low as allowed by non learning slimes forming clusters**
+ * `episodes` controls how many learning episodes are automatically run
+ * `learning-rate` is the classical Q-learning param, controlling "how fast" slimes learn---higher values cause bigger adjustements to Q-values
+ * `discount-factor` is the classical Q-learning param, controlling how much future rewards are given value over immediate ones---higher values cause bigger value given to future rewards
+ * `reward` is the raw reward value considered by the reward function (check code to see how it is used)
+ * `penalty` is the raw penalty (= negative reward) value considered by the reward function (check code to see how it is used)
+
+### PLOTS
+
+The top plots tracks the average "size" of clusters (in terms of number of turtles therein) based on two parameters:
+
+ * `cluster-threshold` is the minimum number of turtles needed to consider the aggregate a cluster (the higher the more difficult to form legit clusters, hence the more difficult to obtain a positive reward for learning turtles)
+ * `cluster-radius` is the range considered to count turtles in a cluster (the higher the easier to form clusters, as turtles far apart are still counted together)
+
+This plot is better suited to monitor non-learning turtles behaviour during a `setup` & `go`: the higher the value the less-and-bigger clusters are produced
+
+The bottom plot is meant to monitor learning, as it plots the average reward per episode (average of the individual rewards of each learning turtle).
+
+### Other params
+
+
+
+-----
+## ORIGINAL INFO BELOW
+-----
+
 ## WHAT IS IT?
 
 This model is inspired by the aggregation behavior of slime-mold cells.
