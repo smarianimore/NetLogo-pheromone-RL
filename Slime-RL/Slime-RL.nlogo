@@ -46,6 +46,8 @@ to setup  ;; NO RL
 end
 
 to setup-learning  ;; RL
+  file-open "stats.txt"
+  log-params
   setup
   set g-reward-list []
   set episode 0
@@ -68,7 +70,7 @@ to setup-learning  ;; RL
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
     qlearningextension:reward [rewardFunc7]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.75 0.95]                         ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
+    qlearningextension:action-selection "e-greedy" [0.50 0.9]                         ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
     qlearningextension:learning-rate learning-rate                                     ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
     qlearningextension:discount-factor discount-factor                                 ;; 0 = only care about immediate reward, 1 = only care about future reward
   ]
@@ -132,10 +134,12 @@ to learn  ;; RL
     plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
     log-ticks "average cluster size in # of turtles: " c-avg
 
-    if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+    let g-avg-rew 0
+
+    if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
     ;if (ticks > 1) and (is-there-cluster = true) [
       set is-there-cluster false
-      let g-avg-rew avg? g-reward-list
+      set g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       set g-reward-list []
@@ -153,8 +157,17 @@ to learn  ;; RL
           ]
       ]
     ]
+
+    if (ticks > 0) and ((ticks mod print-every) = 0)
+      [
+        file-open "stats.txt"
+        ;;          Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, Actions distribution (how many turtles choose each available action)
+        file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-print g-avg-rew
+      ]
+
     tick
   ]
+  file-close-all
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -235,7 +248,7 @@ end
 
 to-report isEndState
   ;if is-there-cluster = true [
-  if (ticks > 1) and ((ticks mod ticks-per-episode) = 0) [
+  if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
     ;set is-there-cluster false
     report true
   ]
@@ -319,7 +332,7 @@ to plot-global [p-name pen-name what]
 end
 
 to log-ticks [msg what]
-  if (ticks > 1) and ((ticks mod print-every) = 0)
+  if (ticks > 0) and ((ticks mod print-every) = 0)
     [ type "t" type ticks type ") " type msg print what ]
 end
 
@@ -376,6 +389,39 @@ to-report avg-cluster?
   if not (c-length = 0)
     [ set c-avg c-sum / c-length ]
   report c-avg
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; LOGGING procedures ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+to log-params
+  file-print "--------------------------------------------------------------------------------"
+  file-type "TIMESTAMP: " file-print date-and-time
+  file-print "PARAMS:"
+  file-type "  population " file-print population
+  file-type "  wiggle-angle " file-print wiggle-angle
+  file-type "  look-ahead " file-print look-ahead
+  file-type "  sniff-threshold " file-print sniff-threshold
+  file-type "  sniff-angle " file-print sniff-angle
+  file-type "  chemical-drop " file-print chemical-drop
+  file-type "  diffuse-share " file-print diffuse-share
+  file-type "  evaporation-rate " file-print evaporation-rate
+  file-type "  cluster-threshold " file-print cluster-threshold
+  file-type "  cluster-radius " file-print cluster-radius
+  file-type "  learning-turtles " file-print learning-turtles
+  file-type "  ticks-per-episode " file-print ticks-per-episode
+  file-type "  episodes " file-print episodes
+  file-type "  learning-rate " file-print learning-rate
+  file-type "  discount-factor " file-print discount-factor
+  file-type "  reward " file-print reward
+  file-type "  penalty " file-print penalty
+  file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                   ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "ACTION SPACE: " file-type "move-toward-chemical " file-type "random-walk " file-print "drop-chemical"  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewardFunc7"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-print "--------------------------------------------------------------------------------"
+  file-type "Episode, " file-type "Tick, " file-type "Avg custer size X tick, " file-type "Avg reward X episode, " file-print "Actions distribution"  ;; How many turtles choose each available action
 end
 
 ; Copyright 1997 Uri Wilensky.
@@ -611,7 +657,7 @@ INPUTBOX
 178
 522
 print-every
-250.0
+1.0
 1
 0
 Number
@@ -625,7 +671,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-20.0
+25.0
 1
 1
 NIL
@@ -637,7 +683,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-500.0
+250.0
 1
 0
 Number
@@ -648,7 +694,7 @@ INPUTBOX
 1519
 423
 episodes
-500.0
+250.0
 1
 0
 Number
@@ -713,7 +759,7 @@ learning-rate
 learning-rate
 0
 1
-0.75
+0.1
 0.05
 1
 NIL
@@ -728,7 +774,7 @@ discount-factor
 discount-factor
 0
 1
-0.75
+0.9
 0.05
 1
 NIL
