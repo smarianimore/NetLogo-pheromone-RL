@@ -68,7 +68,7 @@ to setup-learning  ;; RL
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])  ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [drop-chemical])
     ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
-    qlearningextension:reward [rewardFunc7]                                            ;; the reward function used
+    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.50 0.9]                         ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
     qlearningextension:learning-rate learning-rate                                     ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
@@ -222,7 +222,7 @@ to-report rewardFunc5  ;; additive variation of rewardFunc4
   report rew
 end
 
-to-report rewardFunc6  ;; more penalty than rewardFunc5
+to-report rewardFunc6  ;; variation of rewardFunc5: more 'weight' to cluster size, less 'weight' to penalty
   let rew cluster
   if (ticks > 0)
     [ set rew
@@ -240,6 +240,19 @@ to-report rewardFunc7  ;; no ticks-in-cluster
   if (ticks > 0)
     [ set rew
         ((cluster ^ 2 / cluster-threshold) * reward)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list ]
+  report rew
+end
+
+to-report rewardFunc8  ;; variation of rewardFunc6: ratio of ticks not in cluster, instead of absolute difference
+  let rew cluster
+  if (ticks > 0)
+    [ set rew
+        ((ticks-in-cluster / ticks-per-episode) * reward)
+        +
+        ((cluster / cluster-threshold) * (reward ^ 2))
         +
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
       set reward-list lput rew reward-list ]
@@ -419,7 +432,7 @@ to log-params
   file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                   ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: " file-type "move-toward-chemical " file-type "random-walk " file-print "drop-chemical"  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "REWARD: " file-print "rewardFunc7"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewardFunc8"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   file-type "Episode, " file-type "Tick, " file-type "Avg custer size X tick, " file-type "Avg reward X episode, " file-print "Actions distribution"  ;; How many turtles choose each available action
 end
