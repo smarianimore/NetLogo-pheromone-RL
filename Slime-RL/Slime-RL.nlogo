@@ -48,7 +48,7 @@ end
 
 to setup-learning  ;; RL
   setup
-  set filename (word "experiment_8-" date-and-time ".txt")
+  set filename (word "experiment_9-" date-and-time ".txt")
   print filename
   file-open filename
   log-params
@@ -785,7 +785,7 @@ learning-rate
 learning-rate
 0
 1
-0.9
+0.25
 0.05
 1
 NIL
