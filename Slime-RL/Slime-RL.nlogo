@@ -1,14 +1,19 @@
+;; CHECK ESPECIALLY CAREFULLY COMMENTS WITH "NB" OR "WARNING"
+;; 1) Explictly modify experiment name in procedure setup-learning
+;; 2) Configure RL stuff within "ask Learners [..." in porcedure setup-learning
+;; 3) Explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
+
 extensions[qlearningextension]
 
 globals [
-  filename
+  filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
-  episode               ;; number of episodes run so far (including the running one)
-  is-there-cluster]     ;; is there at least one cluser in the whole environment?
+  episode               ;; progressive number of the currently running episode (hence number of episodes run)
+  is-there-cluster]     ;; is there at least one cluser in the whole environment? (boolean)
 
 patches-own [chemical]  ;; amount of pheromone in the patch
 
-Breed[Learners Learner] ;; turtles that are learning (in red)
+Breed[Learners Learner] ;; turtles that are learning (shown in red)
 
 Learners-own [
   chemical-here         ;; whether there is pheromone on the patch-here (boolean)
@@ -16,7 +21,7 @@ Learners-own [
   reward-list           ;; list of rewards got so far
 ]
 
-turtles-own [  ;; these variables are also inherited by learners
+turtles-own [           ;; NB these variables are also inherited by learners
   ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
   cluster               ;; number of turtles within cluster-radius
   in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
@@ -26,7 +31,7 @@ turtles-own [  ;; these variables are also inherited by learners
 ;; SETUP procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-to setup  ;; NO RL
+to setup                           ;; NO RL here (some RL variables are initialised anyway to avoid errors)
   clear-all
 
   create-turtles population
@@ -46,9 +51,9 @@ to setup  ;; NO RL
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
 end
 
-to setup-learning  ;; RL
+to setup-learning                  ;; RL
   setup
-  set filename (word "experiment_8-" date-and-time ".txt")
+  set filename (word "experiment_8-" date-and-time ".txt")  ;; NB CHANGE NAME OF EXPERIMENT HERE
   print filename
   file-open filename
   log-params
@@ -66,15 +71,15 @@ to setup-learning  ;; RL
       [ set label who ] ]
 
   ask Learners [
-    ;qlearningextension:state-def ["p-chemical" "cluster"] reporter  ;; reporter could report variables that the agent does not own
-    qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING: non-boolean state variables make the Q-table explode in size, hence Netlogo crash 'cause out of memory!
-    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])  ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
+    qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical] [move-and-drop] [walk-and-drop])
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.50 0.9]                         ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
-    qlearningextension:learning-rate learning-rate                                     ;; 0 = only predefined policy (learns nothing), 1 = only latest rewards (learns too much)
-    qlearningextension:discount-factor discount-factor                                 ;; 0 = only care about immediate reward, 1 = only care about future reward
+    qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; NB 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:learning-rate learning-rate
+    qlearningextension:discount-factor discount-factor
   ]
 
   setup-global-plot "Average reward per episode" "average reward" 0
@@ -84,7 +89,7 @@ end
 ;; GO procedures ;;
 ;;;;;;;;;;;;;;;;;;;
 
-to go  ;; NO RL
+to go                                              ;; NO RL
   ask turtles
   [ check-cluster
     ;plot-individual
@@ -105,8 +110,8 @@ to go  ;; NO RL
   tick
 end
 
-to learn  ;; RL
-  if episode < episodes
+to learn                                       ;; RL
+  if episode < episodes                        ;; = learning episodes not finished
   [ ask turtles
     [ if not (breed = Learners)                ;; handle non learning slimes as for 'go' procedure
         [ check-cluster
@@ -116,15 +121,15 @@ to learn  ;; RL
         drop-chemical ]
     ]
 
-    ask Learners
+    ask Learners                               ;; handle learning slimes
     [ check-cluster
       set p-chemical [chemical] of patch-here
       ifelse chemical > sniff-threshold
-      [ set chemical-here true ]               ;; set state variable
+      [ set chemical-here true ]               ;; set state variables
         ;move-toward-chemical ]
       [ set chemical-here false ]
         ;random-walk ]
-      qlearningextension:learning              ;; select an action to the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
+      qlearningextension:learning              ;; NB select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
     ]
 
     diffuse chemical diffuse-share
@@ -138,21 +143,19 @@ to learn  ;; RL
 
     let g-avg-rew 0
 
-    if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
+    if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [               ;; NB an episode has just ended
     ;if (ticks > 1) and (is-there-cluster = true) [
-      clear-patches
-      set is-there-cluster false
+      clear-patches                                                        ;; clear chemical
+      set is-there-cluster false                                           ;; reset state variables
       set g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       set g-reward-list []
       set episode episode + 1
 
-      ask turtles [
+      ask turtles [                                                        ;; reset non learners too
         if not (breed = Learners)
           [
-            ;ask patch-here [ set chemical 0 ]
-            ;ask [neighbors] of patch-here [ set chemical 0 ]
             setxy random-xcor random-ycor
             set ticks-in-cluster 0
             set cluster 0
@@ -161,10 +164,10 @@ to learn  ;; RL
       ]
     ]
 
-    if (ticks > 0) and ((ticks mod print-every) = 0)
+    if (ticks > 0) and ((ticks mod print-every) = 0)                       ;; log experiment data
       [
         file-open filename
-        ;;          Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, Actions distribution (how many turtles choose each available action)
+        ;;        Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, TBD: Actions distribution (how many turtles choose each available action)
         file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-print g-avg-rew
       ]
 
@@ -280,8 +283,8 @@ to resetEpisode
 
   set reward-list []
   set ticks-in-cluster 0
-  ask patch-here [ set chemical 0 ]
-  ask [neighbors] of patch-here [ set chemical 0 ]
+  ;ask patch-here [ set chemical 0 ]
+  ;ask [neighbors] of patch-here [ set chemical 0 ]
 
   setxy random-xcor random-ycor
 end
@@ -300,30 +303,30 @@ to move-toward-chemical  ;; turtle procedure
   [ rt sniff-angle ]
   [ if myleft >= ahead
     [ lt sniff-angle ] ]
-  fd 1                    ;; default: don't turn
+  fd 1                    ;; default don't turn
 end
 
-to random-walk
+to random-walk  ;; turtle procedure
   ifelse (random-float 1) > 0.5
     [ rt random-float wiggle-angle ]
     [ lt random-float wiggle-angle ]
   fd 1
 end
 
-to drop-chemical
+to drop-chemical  ;; turtle procedure
   set chemical chemical + chemical-drop
 end
 
-to dont-drop-chemical
+to dont-drop-chemical  ;; turtle procedure
 
 end
 
-to move-and-drop
+to move-and-drop  ;; turtle procedure
   move-toward-chemical
   drop-chemical
 end
 
-to walk-and-drop
+to walk-and-drop  ;; turtle procedure
   random-walk
   drop-chemical
 end
@@ -363,14 +366,14 @@ to log-ticks [msg what]
 end
 
 to log-episodes [msg what]
-  type "e" type episode type ") " type msg print what
+  type "E" type episode type ") " type msg print what
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; HELP procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
-to check-cluster
+to check-cluster  ;; turtle procedure
   set cluster count turtles in-radius cluster-radius
   ifelse cluster > cluster-threshold
     [ set in-cluster true
@@ -421,7 +424,7 @@ end
 ;; LOGGING procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
-to log-params
+to log-params  ;; NB explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" (everything else is logged automatically)
   file-print "--------------------------------------------------------------------------------"
   file-type "TIMESTAMP: " file-print date-and-time
   file-print "PARAMS:"
@@ -450,8 +453,7 @@ to log-params
   file-type "Episode, " file-type "Tick, " file-type "Avg custer size X tick, " file-type "Avg reward X episode, " file-print "Actions distribution"  ;; How many turtles choose each available action
 end
 
-; Copyright 1997 Uri Wilensky.
-; See Info tab for full copyright and license.
+; Copyright 2022 Stefano Mariani
 @#$#@#$#@
 GRAPHICS-WINDOW
 207
@@ -876,6 +878,13 @@ Roughly, the Netlogo screen is split in two:
 
 **Important**: as the left side parameters are related to basic slime behaviours, they obviously also affect learning (e.g. decreasing the evaporation rate makes learning more difficult). Hence, **you are strongly advised to keep them fixed** once you find suitable behaviour with `setup` & `go` (no RL involved there).
 
+To **keep track of experiments** remember to:
+
+ 1. Explictly modify experiment name in procedure `setup-learning`
+ 2. Configure RL stuff within `ask Learners [...` in procedure `setup-learning
+ 3. Explicitly modify lines `"e-greedy", "ACION SPACE", "OBSERVATION SPACE"`, and `"REWARD"` in procedure `log-params` at the very end of file
+
+
 ### NON-RL parameters
 
 As already said, these parameters describe slimes behaviour in the original model, but also indirectly affect learning, making it more difficult or easier (e.g. decreasing the evaporation rate makes learning more difficult).
@@ -916,7 +925,7 @@ The bottom plot is meant to monitor learning, as it plots the average reward per
 
 ### Other params
 
-
+TBD
 
 -----
 ## ORIGINAL INFO BELOW
@@ -1016,6 +1025,10 @@ Please cite the NetLogo software as:
 * Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 
 ## COPYRIGHT AND LICENSE
+
+Stefano Mariani (stefano.mariani@unimore.it)
+
+Original copyright info below.
 
 Copyright 1997 Uri Wilensky.
 
@@ -1315,7 +1328,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.2.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
