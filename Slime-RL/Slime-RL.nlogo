@@ -1,6 +1,7 @@
 extensions[qlearningextension]
 
 globals [
+  filename
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
   episode               ;; number of episodes run so far (including the running one)
   is-there-cluster]     ;; is there at least one cluser in the whole environment?
@@ -46,9 +47,11 @@ to setup  ;; NO RL
 end
 
 to setup-learning  ;; RL
-  file-open "stats.txt"
-  log-params
   setup
+  set filename (word "experiment_8-" date-and-time ".txt")
+  print filename
+  file-open filename
+  log-params
   set g-reward-list []
   set episode 0
 
@@ -65,9 +68,8 @@ to setup-learning  ;; RL
   ask Learners [
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter  ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING: non-boolean state variables make the Q-table explode in size, hence Netlogo crash 'cause out of memory!
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])  ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    ;(qlearningextension:actions [move-toward-chemical] [drop-chemical])
-    ;(qlearningextension:actions [dont-drop-chemical] [drop-chemical])
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical])  ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical] [move-and-drop] [walk-and-drop])
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.50 0.9]                         ;; 75% random, after each episode this percentage is updated, the new value correspond to the current value multiplied by the decrease rate
@@ -138,6 +140,7 @@ to learn  ;; RL
 
     if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
     ;if (ticks > 1) and (is-there-cluster = true) [
+      clear-patches
       set is-there-cluster false
       set g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
@@ -148,8 +151,8 @@ to learn  ;; RL
       ask turtles [
         if not (breed = Learners)
           [
-            ask patch-here [ set chemical 0 ]
-            ask [neighbors] of patch-here [ set chemical 0 ]
+            ;ask patch-here [ set chemical 0 ]
+            ;ask [neighbors] of patch-here [ set chemical 0 ]
             setxy random-xcor random-ycor
             set ticks-in-cluster 0
             set cluster 0
@@ -160,7 +163,7 @@ to learn  ;; RL
 
     if (ticks > 0) and ((ticks mod print-every) = 0)
       [
-        file-open "stats.txt"
+        file-open filename
         ;;          Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, Actions distribution (how many turtles choose each available action)
         file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-print g-avg-rew
       ]
@@ -315,6 +318,16 @@ to dont-drop-chemical
 
 end
 
+to move-and-drop
+  move-toward-chemical
+  drop-chemical
+end
+
+to walk-and-drop
+  random-walk
+  drop-chemical
+end
+
 ;;;;;;;;;;;;;;;;;;;;;
 ;; SHOW procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;
@@ -430,7 +443,7 @@ to log-params
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
   file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                   ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "ACTION SPACE: " file-type "move-toward-chemical " file-type "random-walk " file-print "drop-chemical"  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "ACTION SPACE: " file-type "move-and-drop " file-type "walk-and-drop " file-type "move-toward-chemical " file-type "random-walk " file-print "drop-chemical"  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
@@ -670,7 +683,7 @@ INPUTBOX
 178
 522
 print-every
-1.0
+50.0
 1
 0
 Number
@@ -707,7 +720,7 @@ INPUTBOX
 1519
 423
 episodes
-250.0
+1000.0
 1
 0
 Number
@@ -772,7 +785,7 @@ learning-rate
 learning-rate
 0
 1
-0.1
+0.9
 0.05
 1
 NIL
@@ -1302,7 +1315,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
