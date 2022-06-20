@@ -53,7 +53,7 @@ end
 
 to setup-learning                  ;; RL
   setup
-  set filename (word "experiment_9-" date-and-time ".txt")
+  set filename (word "experiment_11-" date-and-time ".txt")
   print filename
   file-open filename
   log-params
@@ -74,7 +74,7 @@ to setup-learning                  ;; RL
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical] [move-and-drop] [walk-and-drop])
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop])
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; NB 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -446,7 +446,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVA
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
   file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                   ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "ACTION SPACE: " file-type "move-and-drop " file-type "walk-and-drop " file-type "move-toward-chemical " file-type "random-walk " file-print "drop-chemical"  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "ACTION SPACE: " file-type "move-and-drop " file-type "walk-and-drop " file-type "move-toward-chemical " file-print "random-walk "  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
@@ -685,7 +685,7 @@ INPUTBOX
 178
 522
 print-every
-50.0
+100.0
 1
 0
 Number
@@ -711,7 +711,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-250.0
+500.0
 1
 0
 Number
@@ -722,7 +722,7 @@ INPUTBOX
 1519
 423
 episodes
-1000.0
+1500.0
 1
 0
 Number
@@ -787,7 +787,7 @@ learning-rate
 learning-rate
 0
 1
-0.25
+0.9
 0.05
 1
 NIL
@@ -1328,7 +1328,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
