@@ -90,8 +90,6 @@ to setup-learning                  ;; RL
     qlearningextension:discount-factor discount-factor
   ]
 
-  ;type "Q-table: " print(qlearningextension:get-qtable)
-
   setup-global-plot "Average reward per episode" "average reward" 0
 end
 
@@ -140,8 +138,8 @@ to learn                                       ;; RL
       [ set chemical-here false ]
         ;random-walk ]
       qlearningextension:learning              ;; NB select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
-      if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
-        type "Q-table: " print(qlearningextension:get-qtable) ]
+      ;if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
+        ;type "Q-table: " print(qlearningextension:get-qtable) ]
 
       ifelse table:has-key? action-distribution last-action
         [ let n table:get action-distribution last-action
@@ -168,7 +166,6 @@ to learn                                       ;; RL
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       type "Actions distribution: " print action-distribution
-      ;type "Q-table: " print(qlearningextension:get-qtable)
       setup-action-distribution-table
       set g-reward-list []
       set episode episode + 1
@@ -351,18 +348,28 @@ to dont-drop-chemical  ;; turtle procedure
 
 end
 
-to move-and-drop  ;; turtle procedure
+to move-and-drop  ;; turtle procedure NB can't reuse code due to last-action saving (would compromise tracking of last actions performed!)
   if breed = Learners
     [ set last-action "move-and-drop" ]
-  move-toward-chemical
-  drop-chemical
+  let ahead [chemical] of patch-ahead look-ahead
+  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
+  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ rt sniff-angle ]
+  [ if myleft >= ahead
+    [ lt sniff-angle ] ]
+  fd 1                    ;; default don't turn
+  set chemical chemical + chemical-drop
 end
 
-to walk-and-drop  ;; turtle procedure
+to walk-and-drop  ;; turtle procedure NB can't reuse code due to last-action saving (would compromise tracking of last actions performed!)
   if breed = Learners
     [ set last-action "walk-and-drop" ]
-  random-walk
-  drop-chemical
+  ifelse (random-float 1) > 0.5
+    [ rt random-float wiggle-angle ]
+    [ lt random-float wiggle-angle ]
+  fd 1
+  set chemical chemical + chemical-drop
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -702,7 +709,7 @@ SWITCH
 136
 label?
 label?
-0
+1
 1
 -1000
 
