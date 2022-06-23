@@ -1,12 +1,13 @@
 ;; CHECK ESPECIALLY CAREFULLY COMMENTS WITH "NB" OR "WARNING"
 ;; 1) Explictly modify experiment name in procedure setup-learning
 ;; 2) Configure RL stuff within "ask Learners [..." in porcedure setup-learning
-;; 3) Configure actions reported by logging procedure accordingly
+;; 3) Configure 'actions' global variable accordingly
 ;; 4) Explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
 
 extensions[qlearningextension table]
 
 globals [
+  actions
   action-distribution   ;; table "action -> number of turtles choosing that action"
   filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
@@ -24,7 +25,7 @@ Learners-own [
   last-action
 ]
 
-turtles-own [           ;; NB these variables are also inherited by learners
+turtles-own [           ;; these variables are also inherited by learners
   ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
   cluster               ;; number of turtles within cluster-radius
   in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
@@ -57,7 +58,10 @@ end
 
 to setup-learning                  ;; RL
   setup
-  setup-action-distribution-table
+
+  ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop"]  ;; NB MODIFY ACTIONS LIST HERE
+  setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
 
   if log-data?
@@ -82,10 +86,10 @@ to setup-learning                  ;; RL
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop])
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; NB 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -137,7 +141,7 @@ to learn                                       ;; RL
         ;move-toward-chemical ]
       [ set chemical-here false ]
         ;random-walk ]
-      qlearningextension:learning              ;; NB select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
+      qlearningextension:learning              ;; select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
       ;if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
         ;type "Q-table: " print(qlearningextension:get-qtable) ]
 
@@ -158,7 +162,7 @@ to learn                                       ;; RL
 
     let g-avg-rew 0
 
-    if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [               ;; NB an episode has just ended
+    if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [               ;; an episode has just ended
     ;if (ticks > 1) and (is-there-cluster = true) [
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
@@ -166,7 +170,7 @@ to learn                                       ;; RL
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       type "Actions distribution: " print action-distribution
-      setup-action-distribution-table
+      setup-action-distribution-table actions
       set g-reward-list []
       set episode episode + 1
 
@@ -186,7 +190,8 @@ to learn                                       ;; RL
         [
           file-open filename
           ;;        Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, TBD: Actions distribution (how many turtles choose each available action)
-          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-print g-avg-rew
+          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          print-table action-distribution ", "
         ]
       ]
 
@@ -348,7 +353,7 @@ to dont-drop-chemical  ;; turtle procedure
 
 end
 
-to move-and-drop  ;; turtle procedure NB can't reuse code due to last-action saving (would compromise tracking of last actions performed!)
+to move-and-drop  ;; turtle procedure (can't reuse code due to last-action saving (would compromise tracking of last actions performed!))
   if breed = Learners
     [ set last-action "move-and-drop" ]
   let ahead [chemical] of patch-ahead look-ahead
@@ -362,7 +367,7 @@ to move-and-drop  ;; turtle procedure NB can't reuse code due to last-action sav
   set chemical chemical + chemical-drop
 end
 
-to walk-and-drop  ;; turtle procedure NB can't reuse code due to last-action saving (would compromise tracking of last actions performed!)
+to walk-and-drop  ;; turtle procedure (can't reuse code due to last-action saving (would compromise tracking of last actions performed!))
   if breed = Learners
     [ set last-action "walk-and-drop" ]
   ifelse (random-float 1) > 0.5
@@ -461,20 +466,34 @@ to-report avg-cluster?
   report c-avg
 end
 
-to setup-action-distribution-table  ;; NB CONFIGURE ACTIONS ACCORDING TO RL ACTIONS USED
+to setup-action-distribution-table [collection]
   set action-distribution table:make
-  table:put action-distribution "move-toward-chemical" 0
-  table:put action-distribution "random-walk" 0
-  ;table:put action-distribution "drop-chemical" 0
-  table:put action-distribution "move-and-drop" 0
-  table:put action-distribution "walk-and-drop" 0
+  foreach collection [ c ->
+    table:put action-distribution c 0
+  ]
+end
+
+to print-actions [collection sep]
+  foreach but-last collection [ c ->
+    file-type c file-type sep
+  ]
+  file-type last collection
+  file-print ""
+end
+
+to print-table [tab sep]
+  foreach but-last table:keys tab [ k ->
+    file-type table:get tab k file-type sep
+  ]
+  file-type table:get tab last table:keys tab
+  file-print ""
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LOGGING procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
-to log-params  ;; NB explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" (everything else is logged automatically)
+to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", and "REWARD" (everything else is logged automatically)
   file-print "--------------------------------------------------------------------------------"
   file-type "TIMESTAMP: " file-print date-and-time
   file-print "PARAMS:"
@@ -495,13 +514,14 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVA
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                   ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  ;file-type "ACTION SPACE: " file-type "drop-chemical " file-type "move-toward-chemical " file-print "random-walk "  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "ACTION SPACE: " file-type "move-and-drop " file-type "walk-and-drop " file-type "move-toward-chemical " file-print "random-walk "  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "REWARD: " file-print "rewardFunc8"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "ACTION SPACE: "
+  print-actions actions " "
+  file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
-  file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-print "Actions distribution X episode"  ;; How many turtles choose each available action
+  file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
+  print-actions actions ", "
 end
 
 ; Copyright 2022 Stefano Mariani
@@ -921,7 +941,7 @@ SWITCH
 459
 log-data?
 log-data?
-1
+0
 1
 -1000
 
@@ -944,7 +964,8 @@ To **keep track of experiments** remember to:
 
  1. Explictly modify experiment name in procedure `setup-learning`
  2. Configure RL stuff within `ask Learners [...` in procedure `setup-learning
- 3. Explicitly modify lines `"e-greedy", "ACION SPACE", "OBSERVATION SPACE"`, and `"REWARD"` in procedure `log-params` at the very end of file
+ 3. Configure actions reported by logging procedure accordingly
+ 4. Explicitly modify lines `"e-greedy", "ACION SPACE", "OBSERVATION SPACE"`, and `"REWARD"` in procedure `log-params` at the very end of file
 
 
 ### NON-RL parameters
