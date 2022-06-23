@@ -1,8 +1,8 @@
 ;; CHECK ESPECIALLY CAREFULLY COMMENTS WITH "NB" OR "WARNING"
 ;; 1) Explictly modify experiment name in procedure setup-learning
-;; 2) Configure RL stuff within "ask Learners [..." in porcedure setup-learning
+;; 2) Configure RL stuff within "ask Learners [..." in procedure setup-learning
 ;; 3) Configure 'actions' global variable accordingly
-;; 4) Explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
+;; 4) Explicitly modify lines "e-greedy", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
 
 extensions[qlearningextension table]
 
@@ -59,18 +59,19 @@ end
 to setup-learning                  ;; RL
   setup
 
-  ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
-  set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop"]  ;; NB MODIFY ACTIONS LIST HERE
+  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
-  type "Actions distribution: " print action-distribution
 
   if log-data?
-    [ set filename (word "test-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "experiment_01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
   set g-reward-list []
-  set episode 0
+  set episode 1
+
+  type "Actions distribution: " print action-distribution
 
   create-Learners learning-turtles
   [ set color red
@@ -85,8 +86,8 @@ to setup-learning                  ;; RL
   ask Learners [
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
-    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -123,7 +124,7 @@ to go                                              ;; NO RL
 end
 
 to learn                                       ;; RL
-  if episode < episodes                        ;; = learning episodes not finished
+  if episode <= episodes                        ;; = learning episodes not finished
   [ ask turtles
     [ if not (breed = Learners)                ;; handle non learning slimes as for 'go' procedure
         [ check-cluster
@@ -162,7 +163,17 @@ to learn                                       ;; RL
 
     let g-avg-rew 0
 
-    if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [               ;; an episode has just ended
+    if log-data?
+      [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
+        [
+          file-open filename
+          ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
+          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          print-table action-distribution ", "
+        ]
+      ]
+
+    if (((ticks + 1) mod ticks-per-episode) = 0) [                         ;; an episode has just ended
     ;if (ticks > 1) and (is-there-cluster = true) [
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
@@ -184,16 +195,6 @@ to learn                                       ;; RL
           ]
       ]
     ]
-
-    if log-data?
-      [ if (ticks > 0) and ((ticks mod print-every) = 0)                       ;; log experiment data
-        [
-          file-open filename
-          ;;        Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, TBD: Actions distribution (how many turtles choose each available action)
-          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
-          print-table action-distribution ", "
-        ]
-      ]
 
     tick
   ]
@@ -278,20 +279,22 @@ end
 
 to-report rewardFunc8  ;; variation of rewardFunc6: ratio of ticks not in cluster, instead of absolute difference
   let rew cluster
-  if (ticks > 0)
-    [ set rew
+  ;if (ticks > 0)
+    ;[
+    set rew
         ((ticks-in-cluster / ticks-per-episode) * reward)
         +
         ((cluster / cluster-threshold) * (reward ^ 2))
         +
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
-      set reward-list lput rew reward-list ]
+      set reward-list lput rew reward-list
+   ;]
   report rew
 end
 
 to-report isEndState
   ;if is-there-cluster = true [
-  if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
+  if (((ticks + 1) mod ticks-per-episode) = 0) [
     ;set is-there-cluster false
     report true
   ]
@@ -407,7 +410,7 @@ to plot-global [p-name pen-name what]
 end
 
 to log-ticks [msg what]
-  if (ticks > 0) and ((ticks mod print-every) = 0)
+  if (((ticks + 1) mod print-every) = 0)
     [ type "t" type ticks type ") " type msg print what ]
 end
 
@@ -520,6 +523,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
+  ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
   print-actions actions ", "
 end
@@ -756,7 +760,7 @@ INPUTBOX
 178
 522
 print-every
-1.0
+100.0
 1
 0
 Number
@@ -782,7 +786,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-2.0
+500.0
 1
 0
 Number
@@ -793,7 +797,7 @@ INPUTBOX
 1519
 423
 episodes
-2.0
+1500.0
 1
 0
 Number
@@ -858,7 +862,7 @@ learning-rate
 learning-rate
 0
 1
-0.9
+0.1
 0.05
 1
 NIL
@@ -941,7 +945,7 @@ SWITCH
 459
 log-data?
 log-data?
-0
+1
 1
 -1000
 
