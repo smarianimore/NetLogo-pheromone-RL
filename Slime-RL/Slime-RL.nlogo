@@ -1,11 +1,13 @@
 ;; CHECK ESPECIALLY CAREFULLY COMMENTS WITH "NB" OR "WARNING"
 ;; 1) Explictly modify experiment name in procedure setup-learning
 ;; 2) Configure RL stuff within "ask Learners [..." in porcedure setup-learning
-;; 3) Explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
+;; 3) Configure actions reported by logging procedure accordingly
+;; 4) Explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
 
-extensions[qlearningextension]
+extensions[qlearningextension table]
 
 globals [
+  action-distribution   ;; table "action -> number of turtles choosing that action"
   filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
   episode               ;; progressive number of the currently running episode (hence number of episodes run)
@@ -19,6 +21,7 @@ Learners-own [
   chemical-here         ;; whether there is pheromone on the patch-here (boolean)
   p-chemical            ;; amount of pheromone on the patch-here
   reward-list           ;; list of rewards got so far
+  last-action
 ]
 
 turtles-own [           ;; NB these variables are also inherited by learners
@@ -49,10 +52,14 @@ to setup                           ;; NO RL here (some RL variables are initiali
 
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
+
 end
 
 to setup-learning                  ;; RL
   setup
+  setup-action-distribution-table
+  type "Actions distribution: " print action-distribution
+
   if log-data?
     [ set filename (word "test-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
@@ -82,6 +89,8 @@ to setup-learning                  ;; RL
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
+
+  ;type "Q-table: " print(qlearningextension:get-qtable)
 
   setup-global-plot "Average reward per episode" "average reward" 0
 end
@@ -131,6 +140,13 @@ to learn                                       ;; RL
       [ set chemical-here false ]
         ;random-walk ]
       qlearningextension:learning              ;; NB select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
+      if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
+        type "Q-table: " print(qlearningextension:get-qtable) ]
+
+      ifelse table:has-key? action-distribution last-action
+        [ let n table:get action-distribution last-action
+          table:put action-distribution last-action n + 1 ]
+        [ type who print last-action ]
     ]
 
     diffuse chemical diffuse-share
@@ -151,6 +167,9 @@ to learn                                       ;; RL
       set g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
+      type "Actions distribution: " print action-distribution
+      ;type "Q-table: " print(qlearningextension:get-qtable)
+      setup-action-distribution-table
       set g-reward-list []
       set episode episode + 1
 
@@ -297,6 +316,8 @@ end
 ;;;;;;;;;;;;;;;;
 
 to move-toward-chemical  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "move-toward-chemical" ]
   ;; examine the patch ahead of you and two nearby patches;
   ;; turn in the direction of greatest chemical
   let ahead [chemical] of patch-ahead look-ahead
@@ -310,6 +331,8 @@ to move-toward-chemical  ;; turtle procedure
 end
 
 to random-walk  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "random-walk" ]
   ifelse (random-float 1) > 0.5
     [ rt random-float wiggle-angle ]
     [ lt random-float wiggle-angle ]
@@ -317,19 +340,27 @@ to random-walk  ;; turtle procedure
 end
 
 to drop-chemical  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "drop-chemical" ]
   set chemical chemical + chemical-drop
 end
 
 to dont-drop-chemical  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "dont-drop-chemical" ]
 
 end
 
 to move-and-drop  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "move-and-drop" ]
   move-toward-chemical
   drop-chemical
 end
 
 to walk-and-drop  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "walk-and-drop" ]
   random-walk
   drop-chemical
 end
@@ -423,6 +454,15 @@ to-report avg-cluster?
   report c-avg
 end
 
+to setup-action-distribution-table  ;; NB CONFIGURE ACTIONS ACCORDING TO RL ACTIONS USED
+  set action-distribution table:make
+  table:put action-distribution "move-toward-chemical" 0
+  table:put action-distribution "random-walk" 0
+  ;table:put action-distribution "drop-chemical" 0
+  table:put action-distribution "move-and-drop" 0
+  table:put action-distribution "walk-and-drop" 0
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LOGGING procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -449,11 +489,12 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "ACION SPACE", "OBSERVA
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
   file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                   ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  ;file-type "ACTION SPACE: " file-type "drop-chemical " file-type "move-toward-chemical " file-print "random-walk "  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: " file-type "move-and-drop " file-type "walk-and-drop " file-type "move-toward-chemical " file-print "random-walk "  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8"                                                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
-  file-type "Episode, " file-type "Tick, " file-type "Avg custer size X tick, " file-type "Avg reward X episode, " file-print "Actions distribution"  ;; How many turtles choose each available action
+  file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-print "Actions distribution X episode"  ;; How many turtles choose each available action
 end
 
 ; Copyright 2022 Stefano Mariani
@@ -661,7 +702,7 @@ SWITCH
 136
 label?
 label?
-1
+0
 1
 -1000
 
@@ -688,7 +729,7 @@ INPUTBOX
 178
 522
 print-every
-100.0
+1.0
 1
 0
 Number
@@ -714,7 +755,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-10.0
+2.0
 1
 0
 Number
@@ -725,7 +766,7 @@ INPUTBOX
 1519
 423
 episodes
-5.0
+2.0
 1
 0
 Number
