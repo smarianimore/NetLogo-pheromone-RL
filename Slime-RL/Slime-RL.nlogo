@@ -53,10 +53,11 @@ end
 
 to setup-learning                  ;; RL
   setup
-  set filename (word "experiment_11-" date-and-time ".txt")
-  print filename
-  file-open filename
-  log-params
+  if log-data?
+    [ set filename (word "test-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+      print filename
+      file-open filename
+      log-params ]
   set g-reward-list []
   set episode 0
 
@@ -164,11 +165,13 @@ to learn                                       ;; RL
       ]
     ]
 
-    if (ticks > 0) and ((ticks mod print-every) = 0)                       ;; log experiment data
-      [
-        file-open filename
-        ;;        Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, TBD: Actions distribution (how many turtles choose each available action)
-        file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-print g-avg-rew
+    if log-data?
+      [ if (ticks > 0) and ((ticks mod print-every) = 0)                       ;; log experiment data
+        [
+          file-open filename
+          ;;        Episode,                         Tick,                          Avg custer size X tick,         Avg reward X episode, TBD: Actions distribution (how many turtles choose each available action)
+          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-print g-avg-rew
+        ]
       ]
 
     tick
@@ -711,7 +714,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-500.0
+10.0
 1
 0
 Number
@@ -722,7 +725,7 @@ INPUTBOX
 1519
 423
 episodes
-1500.0
+5.0
 1
 0
 Number
@@ -862,6 +865,17 @@ learning-rate) 0 = only predefined policy (learns nothing), 1 = only latest rewa
 11
 0.0
 1
+
+SWITCH
+47
+426
+163
+459
+log-data?
+log-data?
+1
+1
+-1000
 
 @#$#@#$#@
 ## GOALS
@@ -1328,7 +1342,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.2.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
