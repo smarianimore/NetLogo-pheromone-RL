@@ -1,7 +1,7 @@
 ;; CHECK ESPECIALLY CAREFULLY COMMENTS WITH "NB" OR "WARNING"
 ;; 1) Explictly modify experiment name in procedure setup-learning
-;; 2) Configure RL stuff within "ask Learners [..." in procedure setup-learning
-;; 3) Configure 'actions' global variable accordingly
+;; 2) Configure 'actions' global variable
+;; 3) Configure RL stuff within "ask Learners [..." in procedure setup-learning accordingly
 ;; 4) Explicitly modify lines "e-greedy", "OBSERVATION SPACE", and "REWARD" in procedure log-params at the very end of file
 
 extensions[qlearningextension table]
@@ -9,6 +9,7 @@ extensions[qlearningextension table]
 globals [
   actions
   action-distribution   ;; table "action -> number of turtles choosing that action"
+  turtle-distribution
   filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
   episode               ;; progressive number of the currently running episode (hence number of episodes run)
@@ -62,15 +63,6 @@ to setup-learning                  ;; RL
   set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
-
-  if log-data?
-    [ set filename (word "experiment_01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
-      print filename
-      file-open filename
-      log-params ]
-  set g-reward-list []
-  set episode 1
-
   type "Actions distribution: " print action-distribution
 
   create-Learners learning-turtles
@@ -83,6 +75,17 @@ to setup-learning                  ;; RL
     if label?
       [ set label who ] ]
 
+  setup-turtle-distribution-table Learners
+  type "Turtles distribution: " print turtle-distribution
+
+  if log-data?
+    [ set filename (word "actions_per_turtle-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+      print filename
+      file-open filename
+      log-params ]
+  set g-reward-list []
+  set episode 1
+
   ask Learners [
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
@@ -90,7 +93,7 @@ to setup-learning                  ;; RL
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.5 0.99]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -149,7 +152,12 @@ to learn                                       ;; RL
       ifelse table:has-key? action-distribution last-action
         [ let n table:get action-distribution last-action
           table:put action-distribution last-action n + 1 ]
-        [ type who print last-action ]
+        [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <action-distribution> table!" ]
+      let learner-table table:get turtle-distribution who
+      ifelse table:has-key? learner-table last-action
+        [ let n table:get learner-table last-action
+          table:put learner-table last-action n + 1 ]
+        [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <turtle-distribution> learner table!" ]
     ]
 
     diffuse chemical diffuse-share
@@ -170,6 +178,7 @@ to learn                                       ;; RL
           ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
           file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
           print-table action-distribution ", "
+          print-table-table turtle-distribution ", "
         ]
       ]
 
@@ -181,7 +190,9 @@ to learn                                       ;; RL
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       type "Actions distribution: " print action-distribution
+      type "Turtles distribution: " print turtle-distribution
       setup-action-distribution-table actions
+      setup-turtle-distribution-table Learners
       set g-reward-list []
       set episode episode + 1
 
@@ -476,19 +487,59 @@ to setup-action-distribution-table [collection]
   ]
 end
 
+to setup-turtle-distribution-table [agentset]
+  set turtle-distribution table:make
+  foreach sort agentset [ c ->
+    ;type [who] of c type " "
+    let turtle-action-distribution table:make
+    foreach actions [ a ->
+      table:put turtle-action-distribution a 0
+    ]
+    table:put turtle-distribution [who] of c turtle-action-distribution
+  ]
+end
+
 to print-actions [collection sep]
-  foreach but-last collection [ c ->
+  ;foreach but-last collection [ c ->
+  foreach collection [ c ->
     file-type c file-type sep
   ]
-  file-type last collection
+  ;file-type last collection
+  ;file-print ""
+end
+
+to print-turtle-actions [turtleL actionsL sep]
+  foreach but-last turtleL [ t ->
+    foreach actionsL [ a ->
+      file-type t file-type "-" file-type a file-type sep
+    ]
+  ]
+  foreach but-last actionsL [ a ->
+    file-type last turtleL file-type "-" file-type a file-type sep
+  ]
+  file-type last turtleL file-type "-" file-type last actionsL
   file-print ""
 end
 
 to print-table [tab sep]
-  foreach but-last table:keys tab [ k ->
+  ;foreach but-last table:keys tab [ k ->
+  foreach table:keys tab [ k ->
     file-type table:get tab k file-type sep
   ]
-  file-type table:get tab last table:keys tab
+  ;file-type table:get tab last table:keys tab
+  ;file-print ""
+end
+
+to print-table-table [tabtab sep]
+  foreach but-last table:keys tabtab [ t-who ->
+    foreach table:keys table:get tabtab t-who [ t-a ->
+      file-type table:get table:get tabtab t-who t-a file-type sep
+    ]
+  ]
+  foreach but-last table:keys table:get tabtab last table:keys tabtab [ t-a ->
+    file-type table:get table:get tabtab last table:keys tabtab t-a file-type sep
+  ]
+  file-type table:get table:get tabtab last table:keys tabtab last table:keys table:get tabtab last table:keys tabtab
   file-print ""
 end
 
@@ -517,15 +568,16 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.9 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.99 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
-  print-actions actions " "
+  print-actions actions " " file-print ""
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
   print-actions actions ", "
+  print-turtle-actions sort Learners actions ", "
 end
 
 ; Copyright 2022 Stefano Mariani
@@ -733,7 +785,7 @@ SWITCH
 136
 label?
 label?
-1
+0
 1
 -1000
 
@@ -760,7 +812,7 @@ INPUTBOX
 178
 522
 print-every
-100.0
+1.0
 1
 0
 Number
@@ -786,7 +838,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-500.0
+5.0
 1
 0
 Number
@@ -797,7 +849,7 @@ INPUTBOX
 1519
 423
 episodes
-1500.0
+5.0
 1
 0
 Number
@@ -862,7 +914,7 @@ learning-rate
 learning-rate
 0
 1
-0.1
+0.25
 0.05
 1
 NIL
@@ -877,7 +929,7 @@ discount-factor
 discount-factor
 0
 1
-0.9
+0.75
 0.05
 1
 NIL
@@ -922,7 +974,7 @@ learning-turtles
 learning-turtles
 1
 100
-50.0
+5.0
 1
 1
 NIL
@@ -1415,7 +1467,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.2.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
