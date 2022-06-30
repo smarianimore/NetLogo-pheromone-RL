@@ -60,7 +60,7 @@ to setup-learning                  ;; RL
   setup
 
   set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
-  ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop"]  ;; NB MODIFY ACTIONS LIST HERE
+  ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
 
   if log-data?
@@ -87,7 +87,7 @@ to setup-learning                  ;; RL
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.50 0.9]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -945,7 +945,7 @@ SWITCH
 459
 log-data?
 log-data?
-1
+0
 1
 -1000
 
@@ -1415,7 +1415,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
