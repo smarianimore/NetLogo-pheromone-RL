@@ -79,7 +79,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "actions_08-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "test_01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -174,6 +174,7 @@ to learn                                       ;; RL
     if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
+          set g-avg-rew avg? g-reward-list
           file-open filename
           ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
           file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
@@ -838,7 +839,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-500.0
+100.0
 1
 0
 Number
@@ -849,7 +850,7 @@ INPUTBOX
 1519
 423
 episodes
-3000.0
+10.0
 1
 0
 Number
@@ -1467,7 +1468,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.2.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

@@ -64,8 +64,8 @@ to setup                           ;; NO RL here (some RL variables are initiali
   set is-there-cluster false
 
   reset-ticks
-  setup-global-plot "Average cluster size in # of turtles within cluster-radius" "Cluster-0" magenta
-  setup-global-plot "Average cluster size in # of turtles within cluster-radius" "Cluster-1" lime
+  setup-global-plot "Average cluster size in # of turtles within cluster-radius" "Cluster-0" pink
+  setup-global-plot "Average cluster size in # of turtles within cluster-radius" "Cluster-1" yellow
 
 end
 
@@ -1423,7 +1423,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-25.0
+20.0
 1
 1
 NIL
@@ -1446,7 +1446,7 @@ INPUTBOX
 1526
 419
 episodes
-1500.0
+3000.0
 1
 0
 Number
