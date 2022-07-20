@@ -224,6 +224,7 @@ to learn                                       ;; RL
     if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
+          set g-avg-rew avg? g-reward-list
           file-open filename
           ;;        Episode,                         Tick,                  Avg cluster-0 size X tick,       Avg cluster-1 size X tick,             Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
           file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg-0 file-type ", " file-type c-avg-1 file-type ", " file-type g-avg-rew file-type ", "
@@ -1166,7 +1167,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.99 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
-  file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster-0" file-print "in-cluster-1"     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "OBSERVATION SPACE: " file-type "chemical-here " file-type "in-cluster-0 " file-print "in-cluster-1"     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8bis"                                                                        ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
