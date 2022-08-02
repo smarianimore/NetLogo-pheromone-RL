@@ -60,8 +60,8 @@ end
 to setup-learning                  ;; RL
   setup
 
-  set actions ["random-walk" "stand-still"]
-  ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  ;set actions ["random-walk" "stand-still"]
+  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
@@ -80,7 +80,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "baseline-rew8-e995-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "scatter-rew02-e995-02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -90,10 +90,10 @@ to setup-learning                  ;; RL
   ask Learners [
     ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
     qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
-    (qlearningextension:actions [random-walk] [stand-still])
-    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    ;(qlearningextension:actions [random-walk] [stand-still])
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
-    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
+    qlearningextension:reward [scatter02]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.5 0.995]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
@@ -301,6 +301,36 @@ to-report rewardFunc8  ;; variation of rewardFunc6: ratio of ticks not in cluste
         ((cluster / cluster-threshold) * (reward ^ 2))
         +
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter01  ;; incentivise scattering, not clustering!
+  let rew cluster
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * penalty)
+        +
+        ((cluster / cluster-threshold) * (penalty ^ 2))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward ^ 2))
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter02  ;; incentivise scattering, not clustering!
+  let rew cluster
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * (penalty ^ 2))
+        +
+        ((cluster-threshold / cluster) * (reward ^ 2))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * reward)
       set reward-list lput rew reward-list
    ;]
   report rew
@@ -583,7 +613,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "scatter02"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
@@ -796,7 +826,7 @@ SWITCH
 136
 label?
 label?
-0
+1
 1
 -1000
 
@@ -860,7 +890,7 @@ INPUTBOX
 1519
 423
 episodes
-3000.0
+1500.0
 1
 0
 Number
@@ -925,7 +955,7 @@ learning-rate
 learning-rate
 0
 1
-0.2
+0.8
 0.05
 1
 NIL
@@ -940,7 +970,7 @@ discount-factor
 discount-factor
 0
 1
-0.2
+0.8
 0.05
 1
 NIL
@@ -970,7 +1000,7 @@ penalty
 penalty
 -100
 0
--1.0
+-2.0
 1
 1
 NIL
