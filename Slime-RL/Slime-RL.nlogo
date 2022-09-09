@@ -80,7 +80,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "scatter-rew02-e995-02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "scatter-rew03-e995-04-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -93,7 +93,7 @@ to setup-learning                  ;; RL
     ;(qlearningextension:actions [random-walk] [stand-still])
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
-    qlearningextension:reward [scatter02]                                            ;; the reward function used
+    qlearningextension:reward [scatter03]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     qlearningextension:action-selection "e-greedy" [0.5 0.995]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
@@ -329,6 +329,21 @@ to-report scatter02  ;; incentivise scattering, not clustering!
         ((ticks-in-cluster / ticks-per-episode) * (penalty ^ 2))
         +
         ((cluster-threshold / cluster) * (reward ^ 2))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * reward)
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter03  ;; incentivise scattering, not clustering!
+  let rew cluster
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * (penalty ^ 2))
+        +
+        ((0 - cluster) * (reward ^ 2))
         +
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * reward)
       set reward-list lput rew reward-list
@@ -613,7 +628,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "REWARD: " file-print "scatter02"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "scatter03"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
