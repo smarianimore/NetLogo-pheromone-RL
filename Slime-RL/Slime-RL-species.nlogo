@@ -113,7 +113,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "species_01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "species-rewOverlap-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -127,7 +127,9 @@ to setup-learning                  ;; RL
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewSpecies8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.9 0.998]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    ;; 1500 episodes -> 0.9 0.998, 500 episodes -> 0.9 0.996
+    ;qlearningextension:action-selection "e-greedy" [0.9 0.998]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.9 0.996]
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -397,7 +399,7 @@ to-report rewSpecies-overlap  ;; allows different clusters to overlap
   let bad-cluster 0
 
   ;; Check the turtle's species -- 1
-  ifelse species = True
+  ifelse species = true
   [
     set good-cluster cluster-1
 
@@ -444,7 +446,7 @@ to-report rewSpecies-nooverlap
   let bad-cluster 0
 
   ;; Check the turtle's species -- 1
-  ifelse species = True
+  ifelse species = true
   [
     if in-cluster-1 and not in-cluster-0
       [ set good-cluster cluster-1 ]
@@ -499,7 +501,7 @@ to-report rewSpecies10  ;; Changes to func9 by including also the amount of chem
   let bad-chem 0
 
   ;; Check the turtle's species -- 1
-  ifelse species = True
+  ifelse species = true
   [
     set rew cluster-1
     set good-chem chemical-1-here
@@ -569,7 +571,7 @@ to-report rewSpecies11  ;; Changes to func10 reducing the importance of dropping
   let bad-chem 0
 
   ;; Check the turtle's species -- 1
-  ifelse species = True
+  ifelse species = true
   [
     set rew cluster-1
     set good-chem chemical-1-here
@@ -642,7 +644,7 @@ to-report rewSpecies12  ;; Tweaks to func11
   let avg 0
 
   ;; Check the turtle's species -- 1
-  ifelse species = True
+  ifelse species = true
   [
     set good-chem chemical-1-here
     set bad-chem chemical-0-here
@@ -904,8 +906,8 @@ to check-cluster  ;; turtle procedure
 end
 
 to check-cluster-adv ;; learners only --- not resetting ticks-in-cluster and ticks-in-w-cluster
-  set cluster-0 count Learners in-radius cluster-radius with [species = False]   ;; Count how many species 0 turtles are in cluster range
-  set cluster-1 count Learners in-radius cluster-radius with [species = True]    ;; Count how many species 1 turtles are in cluster range
+  set cluster-0 count Learners in-radius cluster-radius with [species = false]   ;; Count how many species 0 turtles are in cluster range
+  set cluster-1 count Learners in-radius cluster-radius with [species = true]    ;; Count how many species 1 turtles are in cluster range
 
   ifelse cluster-0 > cluster-threshold or cluster-1 > cluster-threshold
   [ set is-there-cluster true ]
@@ -1339,7 +1341,7 @@ SWITCH
 132
 label?
 label?
-1
+0
 1
 -1000
 
@@ -1368,7 +1370,7 @@ INPUTBOX
 178
 522
 print-every
-100.0
+500.0
 1
 0
 Number
@@ -1405,7 +1407,7 @@ INPUTBOX
 1526
 419
 episodes
-1500.0
+500.0
 1
 0
 Number

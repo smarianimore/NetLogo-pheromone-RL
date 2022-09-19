@@ -95,7 +95,8 @@ to setup-learning                  ;; RL
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [scatter03]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.5 0.995]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    ; 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
+    qlearningextension:action-selection "e-greedy" [0.9 0.9965]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -524,11 +525,11 @@ to-report avg-cluster?
   let c-sum 0
   let c-length 0
   foreach sort turtles [ t ->
-    if ([cluster] of t) > cluster-threshold
-      [
+    ;if ([cluster] of t) > cluster-threshold
+      ;[
         set c-sum c-sum + ([cluster] of t)
         set c-length c-length + 1
-      ]
+      ;]
   ]
   let c-avg 0
   if not (c-length = 0)
