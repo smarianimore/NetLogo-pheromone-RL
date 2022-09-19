@@ -80,7 +80,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "scatter-rew02-e995-02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "3actions-radius5-rew8-e9_995-04-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -93,9 +93,9 @@ to setup-learning                  ;; RL
     ;(qlearningextension:actions [random-walk] [stand-still])
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
-    qlearningextension:reward [scatter02]                                            ;; the reward function used
+    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    qlearningextension:action-selection "e-greedy" [0.5 0.995]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.9 0.995]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -297,6 +297,21 @@ to-report rewardFunc8  ;; variation of rewardFunc6: ratio of ticks not in cluste
     ;[
     set rew
         ((ticks-in-cluster / ticks-per-episode) * reward)
+        +
+        ((cluster / cluster-threshold) * (reward ^ 2))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report rewardFunc9  ;; variation of rewardFunc8: ratio of ticks in cluster give reward only if cluster of correct size
+  let rew cluster
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * (cluster / cluster-threshold) * reward)
         +
         ((cluster / cluster-threshold) * (reward ^ 2))
         +
@@ -609,11 +624,11 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.5 file-type " " file-type 0.995 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.995 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "REWARD: " file-print "scatter02"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
@@ -813,7 +828,7 @@ cluster-radius
 cluster-radius
 1
 50
-10.0
+5.0
 1
 1
 NIL
@@ -890,7 +905,7 @@ INPUTBOX
 1519
 423
 episodes
-1500.0
+3000.0
 1
 0
 Number
@@ -970,7 +985,7 @@ discount-factor
 discount-factor
 0
 1
-0.8
+0.2
 0.05
 1
 NIL
@@ -1508,7 +1523,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
