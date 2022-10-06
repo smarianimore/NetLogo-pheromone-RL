@@ -80,7 +80,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "3actions-radius5-rew8-e9_995-04-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "3actions-radius5-cluster25-rew8-e9_9985-04-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -96,7 +96,7 @@ to setup-learning                  ;; RL
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
-    qlearningextension:action-selection "e-greedy" [0.9 0.9965]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -640,7 +640,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.995 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.9985 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
   file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
@@ -898,7 +898,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-30.0
+25.0
 1
 1
 NIL
@@ -1031,7 +1031,7 @@ penalty
 penalty
 -100
 0
--2.0
+-1.0
 1
 1
 NIL
