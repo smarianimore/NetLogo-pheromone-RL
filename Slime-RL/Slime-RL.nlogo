@@ -21,6 +21,7 @@ Breed[Learners Learner] ;; turtles that are learning (shown in red)
 
 Learners-own [
   chemical-here         ;; whether there is pheromone on the patch-here (boolean)
+  chemical-gradient     ;; direction where gradient is stronger
   p-chemical            ;; amount of pheromone on the patch-here
   reward-list           ;; list of rewards got so far
   last-action
@@ -71,6 +72,7 @@ to setup-learning                  ;; RL
     set size 2
     setxy random-xcor random-ycor
     set chemical-here false
+    set chemical-gradient max-one-of neighbors [chemical]
     set p-chemical 0
     set reward-list []
     if label?
@@ -148,6 +150,7 @@ to learn                                       ;; RL
         ;move-toward-chemical ]
       [ set chemical-here false ]
         ;random-walk ]
+      set chemical-gradient face-chem-gradient
       qlearningextension:learning              ;; select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
       ;if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
         ;type "Q-table: " print(qlearningextension:get-qtable) ]
@@ -504,6 +507,19 @@ end
 ;;;;;;;;;;;;;;;;;;;;;
 ;; HELP procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;
+
+to-report face-chem-gradient  ;; turtle procedure
+  ;; examine the patch ahead of you and two nearby patches;
+  ;; turn in the direction of greatest chemical
+  let ahead [chemical] of patch-ahead look-ahead
+  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
+  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ rt sniff-angle ]
+  [ if myleft >= ahead
+    [ lt sniff-angle ] ]
+  report patch-ahead look-ahead
+end
 
 to check-cluster  ;; turtle procedure
   set cluster count turtles in-radius cluster-radius
