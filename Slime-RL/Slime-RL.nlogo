@@ -82,7 +82,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-test-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-chemical-gradient-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -90,8 +90,8 @@ to setup-learning                  ;; RL
   set episode 1
 
   ask Learners [
-    ;qlearningextension:state-def ["p-chemical" "cluster"] reporter                    ;; reporter could report variables that the agent does not own
-    qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
+    qlearningextension:state-def ["chemical-gradient" "in-cluster"] ;; reporter                    ;; reporter could report variables that the agent does not own
+    ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
@@ -659,7 +659,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.9985 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
-  file-type "OBSERVATION SPACE: " file-type "chemical-here " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
