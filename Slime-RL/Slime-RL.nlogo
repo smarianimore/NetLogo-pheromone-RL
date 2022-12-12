@@ -1788,19 +1788,15 @@ NetLogo 6.2.1
       <value value="0.9"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-threshold">
-      <value value="15"/>
       <value value="25"/>
-      <value value="35"/>
       <value value="50"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="discount-factor">
       <value value="0.9"/>
-      <value value="0.99"/>
       <value value="0.999"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-radius">
       <value value="5"/>
-      <value value="10"/>
       <value value="15"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="chemical-drop">
