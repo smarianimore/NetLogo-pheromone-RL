@@ -707,7 +707,7 @@ population
 population
 0
 1000
-0.0
+50.0
 10
 1
 NIL
@@ -861,7 +861,7 @@ cluster-radius
 cluster-radius
 1
 50
-5.0
+10.0
 1
 1
 NIL
@@ -915,7 +915,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-15.0
+35.0
 1
 1
 NIL
@@ -938,7 +938,7 @@ INPUTBOX
 1519
 423
 episodes
-3000.0
+5000.0
 1
 0
 Number
@@ -1003,7 +1003,7 @@ learning-rate
 learning-rate
 0
 1
-0.1
+0.05
 0.05
 1
 NIL
@@ -1018,7 +1018,7 @@ discount-factor
 discount-factor
 0
 1
-0.9
+0.95
 0.05
 1
 NIL
