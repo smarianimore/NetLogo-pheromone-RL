@@ -82,7 +82,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-chemical-gradient-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-gradient-cluster-03-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -90,15 +90,16 @@ to setup-learning                  ;; RL
   set episode 1
 
   ask Learners [
-    qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
+    qlearningextension:state-def ["chemical-gradient" "in-cluster"]
+    ;qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
     (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
-    ; 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
-    qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
+    qlearningextension:action-selection "e-greedy" [0.9 0.999]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -656,11 +657,11 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.9985 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.999 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
-  ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
-  file-type "OBSERVATION SPACE: " file-print"chemical-gradient "
+  file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  ;file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
   file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
@@ -1845,6 +1846,141 @@ NetLogo 6.2.1
     <enumeratedValueSet variable="learning-rate">
       <value value="0.1"/>
       <value value="0.01"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="chem-grad-singleton" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup-learning</setup>
+    <go>learn</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.999"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="5000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.01"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="chem-grad-02" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup-learning</setup>
+    <go>learn</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="25"/>
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.9"/>
+      <value value="0.999"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="5"/>
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.1"/>
+      <value value="0.01"/>
+      <value value="0.001"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
