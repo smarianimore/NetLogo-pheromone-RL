@@ -22,6 +22,7 @@ Breed[Learners Learner] ;; turtles that are learning (shown in red)
 Learners-own [
   chemical-here         ;; whether there is pheromone on the patch-here (boolean)
   chemical-gradient     ;; direction where gradient is stronger
+  cluster-gradient     ;; direction where cluster is stronger
   p-chemical            ;; amount of pheromone on the patch-here
   reward-list           ;; list of rewards got so far
   last-action
@@ -61,8 +62,10 @@ end
 to setup-learning                  ;; RL
   setup
 
-  ;set actions ["random-walk" "stand-still"]
-  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  set actions ["random-walk" "stand-still"]
+  ;set actions ["random-walk" "move-toward-cluster"]
+  ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
+  ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
@@ -73,6 +76,7 @@ to setup-learning                  ;; RL
     setxy random-xcor random-ycor
     set chemical-here false
     set chemical-gradient max-one-of neighbors [chemical]
+    set cluster-gradient max-one-of neighbors [count turtles-on neighbors]
     set p-chemical 0
     set reward-list []
     if label?
@@ -82,7 +86,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-gradient-cluster-03-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-baseline-02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -90,11 +94,12 @@ to setup-learning                  ;; RL
   set episode 1
 
   ask Learners [
-    qlearningextension:state-def ["chemical-gradient" "in-cluster"]
+    qlearningextension:state-def ["cluster-gradient" "in-cluster"]
+    ;qlearningextension:state-def ["chemical-gradient" "in-cluster"]
     ;qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
-    ;(qlearningextension:actions [random-walk] [stand-still])
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    (qlearningextension:actions [random-walk] [stand-still])
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
@@ -152,6 +157,7 @@ to learn                                       ;; RL
       [ set chemical-here false ]
         ;random-walk ]
       set chemical-gradient face-chem-gradient
+      set cluster-gradient face-cluster-gradient
       qlearningextension:learning              ;; select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
       ;if (ticks > 0) and ((ticks mod ticks-per-episode) = 0) [
         ;type "Q-table: " print(qlearningextension:get-qtable) ]
@@ -399,6 +405,19 @@ end
 ;; RL actions ;;
 ;;;;;;;;;;;;;;;;
 
+to move-toward-cluster  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "move-toward-cluster" ]
+  let ahead count-from-me look-ahead 0
+  let myright count-from-me look-ahead 1
+  let myleft count-from-me look-ahead -1
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ rt sniff-angle ]
+  [ if myleft >= ahead
+    [ lt sniff-angle ] ]
+  fd 1
+end
+
 to move-toward-chemical  ;; turtle procedure
   if breed = Learners
     [ set last-action "move-toward-chemical" ]
@@ -468,6 +487,60 @@ to stand-still
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
+;; RL observations ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+to-report count-from-me [howfar direction]
+  let counter 0
+  let candidates turtles-here
+  while [counter < howfar]
+  [ set counter counter + 1
+    if direction = 0
+      [ set candidates (turtle-set candidates turtles-on patch-ahead counter) ]
+    if direction = 1
+      [ set candidates (turtle-set candidates turtles-on patch-right-and-ahead sniff-angle counter) ]
+    if direction = -1
+      [ set candidates (turtle-set candidates turtles-on patch-left-and-ahead sniff-angle counter) ]
+  ]
+  report count candidates
+end
+
+to-report face-cluster-gradient  ;; turtle procedure
+  ;; examine the patch ahead of you and two nearby patches;
+  ;; turn in the direction of greatest chemical
+  let ahead count-from-me look-ahead 0
+  let myright count-from-me look-ahead 1
+  let myleft count-from-me look-ahead -1
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ rt sniff-angle ]
+  [ if myleft >= ahead
+    [ lt sniff-angle ] ]
+  report patch-ahead look-ahead
+end
+
+to-report face-chem-gradient  ;; turtle procedure
+  ;; examine the patch ahead of you and two nearby patches;
+  ;; turn in the direction of greatest chemical
+  let ahead [chemical] of patch-ahead look-ahead
+  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
+  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ rt sniff-angle ]
+  [ if myleft >= ahead
+    [ lt sniff-angle ] ]
+  report patch-ahead look-ahead
+end
+
+to check-cluster  ;; turtle procedure
+  set cluster count turtles in-radius cluster-radius
+  ifelse cluster > cluster-threshold
+    [ set in-cluster true
+      set is-there-cluster true
+      set ticks-in-cluster ticks-in-cluster + 1 ]
+    [ set in-cluster false ]
+end
+
+;;;;;;;;;;;;;;;;;;;;;
 ;; SHOW procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
@@ -508,28 +581,6 @@ end
 ;;;;;;;;;;;;;;;;;;;;;
 ;; HELP procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;
-
-to-report face-chem-gradient  ;; turtle procedure
-  ;; examine the patch ahead of you and two nearby patches;
-  ;; turn in the direction of greatest chemical
-  let ahead [chemical] of patch-ahead look-ahead
-  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
-  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
-  ifelse (myright >= ahead) and (myright >= myleft)
-  [ rt sniff-angle ]
-  [ if myleft >= ahead
-    [ lt sniff-angle ] ]
-  report patch-ahead look-ahead
-end
-
-to check-cluster  ;; turtle procedure
-  set cluster count turtles in-radius cluster-radius
-  ifelse cluster > cluster-threshold
-    [ set in-cluster true
-      set is-there-cluster true
-      set ticks-in-cluster ticks-in-cluster + 1 ]
-    [ set in-cluster false ]
-end
 
 ;to l-check-cluster
 ;  set l-cluster count turtles in-radius cluster-radius
@@ -660,7 +711,8 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.999 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
-  file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
+  ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   ;file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
   file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
