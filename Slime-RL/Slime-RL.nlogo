@@ -30,10 +30,10 @@ Breed[Learners Learner] ;; turtles that are learning (shown in red)
 Learners-own [
   ;; chemical
   chemical-here         ;; whether there is pheromone on the patch-here (boolean)
-  chemical-0-here       ;; amount of chemical 0 of patch-here
-  chemical-1-here       ;; amount of chemical 1 of patch-here
+  chemical-0-here       ;; whether there is chemical 0 on the patch-here
+  chemical-1-here       ;; whether there is chemical 1 on the patch-here
   chemical-gradient     ;; direction where gradient is stronger
-  p-chemical            ;; amount of pheromone on the patch-here
+  ;p-chemical            ;; amount of pheromone on the patch-here
   ;; cluster
   cluster-gradient      ;; direction where cluster is stronger
   ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
@@ -110,11 +110,11 @@ end
 to setup-learning                  ;; RL
   setup
 
-  set actions ["move-toward-chemical-0" "drop-chemical-0" "random-walk" "move-toward-chemical-1" "drop-chemical-1"]
+  ;set actions ["move-toward-chemical-0" "drop-chemical-0" "random-walk" "move-toward-chemical-1" "drop-chemical-1"]
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
-  ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
@@ -123,10 +123,10 @@ to setup-learning                  ;; RL
   [ set color red
     set size 2
     setxy random-xcor random-ycor
+    set species 2
     set chemical-here false
     set chemical-gradient max-one-of neighbors [chemical]
     set cluster-gradient max-one-of neighbors [count turtles-on neighbors]
-    set p-chemical 0
     set reward-list []
     if label?
       [ set label who ] ]
@@ -135,14 +135,14 @@ to setup-learning                  ;; RL
   [ set color magenta
     set size 2
     setxy random-xcor random-ycor
-    set chemical-here false
     set species 0
+    ;set chemical-here false
     set ticks-in-cluster 0
     set ticks-in-w-cluster 0
     set in-cluster-0 false
     set in-cluster-1 false
-    set chemical-0-here 0
-    set chemical-1-here 0
+    set chemical-0-here false
+    set chemical-1-here false
     set reward-list []
     if label?
       [ set label who ] ]
@@ -151,14 +151,14 @@ to setup-learning                  ;; RL
   [ set color lime
     set size 2
     setxy random-xcor random-ycor
-    set chemical-here false
     set species 1
+    ;set chemical-here false
     set ticks-in-cluster 0
     set ticks-in-w-cluster 0
     set in-cluster-0 false
     set in-cluster-1 false
-    set chemical-0-here 0
-    set chemical-1-here 0
+    set chemical-0-here false
+    set chemical-1-here false
     set reward-list []
     if label?
       [ set label who ] ]
@@ -175,19 +175,19 @@ to setup-learning                  ;; RL
   set episode 1
 
   ask Learners [
-    qlearningextension:state-def ["chemical-0-here" "chemical-1-here" "in-cluster-0" "in-cluster-1"]
+    ;qlearningextension:state-def ["chemical-0-here" "chemical-1-here" "in-cluster-0" "in-cluster-1"]
     ;qlearningextension:state-def ["cluster-gradient" "in-cluster"]
     ;qlearningextension:state-def ["chemical-gradient" "in-cluster"]
     ;qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
-    ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
-    (qlearningextension:actions [move-toward-chemical-0] [drop-chemical-0] [random-walk] [move-toward-chemical-1] [drop-chemical-1])
+    qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
+    ;(qlearningextension:actions [move-toward-chemical-0] [drop-chemical-0] [random-walk] [move-toward-chemical-1] [drop-chemical-1])
     ;(qlearningextension:actions [random-walk] [stand-still])
-    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
-    qlearningextension:reward [rewSpecies8]                                            ;; the reward function used
+    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
-    qlearningextension:action-selection "e-greedy" [0.9 0.999]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
   ]
@@ -256,24 +256,37 @@ to learn                                       ;; RL
   if episode <= episodes                        ;; = learning episodes not finished
   [ ask turtles
     [ if not (breed = Learners)                ;; handle non learning slimes as for 'go' procedure
-        [ check-cluster
-        ifelse chemical > sniff-threshold
-          [ move-toward-chemical ]
-          [ random-walk ]
-        drop-chemical ]
+        [ check-cluster-adv
+        if species = 0
+          [ ifelse chemical-0 > sniff-threshold              ;; ignore pheromone unless there's enough here
+            [ move-toward-chemical-0 ]
+            [ random-walk ]
+            drop-chemical-0 ]
+        if species = 1
+          [ ifelse chemical-1 > sniff-threshold              ;; ignore pheromone unless there's enough here
+            [ move-toward-chemical-1 ]
+            [ random-walk ]
+            drop-chemical-1 ]
+        if species = 2
+          [ ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
+            [ move-toward-chemical ]
+            [ random-walk ]
+            drop-chemical ]                                ;; drop chemical onto patch
+        ]
     ]
 
     ask Learners                               ;; handle learning slimes
     [ ;check-cluster
       check-cluster-adv
-      set p-chemical [chemical] of patch-here
-      set chemical-0-here [chemical-0] of patch-here
-      set chemical-1-here [chemical-1] of patch-here
-      ifelse chemical > sniff-threshold or chemical-0 > sniff-threshold or chemical-1 > sniff-threshold
-      [ set chemical-here true ]               ;; set state variables
-        ;move-toward-chemical ]
-      [ set chemical-here false ]
-        ;random-walk ]
+      ifelse chemical > sniff-threshold
+        [ set chemical-here true ]               ;; set state variables
+        [ set chemical-here false ]
+      ifelse chemical-0 > sniff-threshold
+        [ set chemical-0-here true ]               ;; set state variables
+        [ set chemical-0-here false ]
+      ifelse chemical-1 > sniff-threshold
+        [ set chemical-1-here true ]               ;; set state variables
+        [ set chemical-1-here false ]
       set chemical-gradient face-chem-gradient
       set cluster-gradient face-cluster-gradient
       qlearningextension:learning              ;; select an action for the current state, perform the action, get the reward, update the Q-table, verify if the new state is an end state and if so will run the procedure passed to the extension in the end-episode primitive
@@ -350,7 +363,7 @@ to learn                                       ;; RL
         if not (breed = Learners)
           [
             setxy random-xcor random-ycor
-            set ticks-in-cluster 0
+            ;set ticks-in-cluster 0
             set cluster 0
             set in-cluster false
           ]
@@ -519,7 +532,7 @@ to-report rewSpecies8  ;; variation of rewardFunc8 -- BEST behaviors with this
   let gchem 0
   let avoid-0 0
 
-  ifelse species = 0;; type of chemical dropped / attracted
+  ifelse species = 0  ;; type of chemical dropped / attracted
   [
     set cluster cluster-0
     set chem chemical-1-here
@@ -638,7 +651,7 @@ to-report rewSpecies-nooverlap
       +
       ((good-cluster / cluster-threshold) * (reward ^ 2))                                                  ;; Great reward for being in the right cluster
       +
-      (((ticks-per-episode - ticks-in-cluster - ticks-in-w-cluster) / ticks-per-episode) * penalty)        ;; Punish if a turtle spends time just wandering around
+      (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)        ;; Punish if a turtle spends time just wandering around
       +
       ((bad-cluster / cluster-threshold) * (penalty * 10))                                                 ;; Great penalty for being in the wrong cluster (maybe too big)
       ;+
@@ -1079,7 +1092,8 @@ to check-cluster-adv ;; learners only --- not resetting ticks-in-cluster and tic
   set cluster count turtles in-radius cluster-radius with [species = 2]
   ifelse cluster > cluster-threshold
     [ set in-cluster true
-      set is-there-cluster true ]
+      set is-there-cluster true
+      set ticks-in-cluster ticks-in-cluster + 1 ]
     [ set in-cluster false ]
   set cluster-0 count turtles in-radius cluster-radius with [species = 0]   ;; Count how many species 0 turtles are in cluster range
   set cluster-1 count turtles in-radius cluster-radius with [species = 1]    ;; Count how many species 1 turtles are in cluster range
@@ -1605,7 +1619,7 @@ INPUTBOX
 1519
 423
 episodes
-5000.0
+3000.0
 1
 0
 Number
@@ -1728,7 +1742,7 @@ SLIDER
 318
 learning-turtles
 learning-turtles
-1
+0
 100
 50.0
 1
@@ -1764,9 +1778,9 @@ SLIDER
 317
 learning-turtles-0
 learning-turtles-0
-1
+0
 100
-50.0
+0.0
 1
 1
 NIL
@@ -1779,9 +1793,9 @@ SLIDER
 317
 learning-turtles-1
 learning-turtles-1
-1
+0
 100
-50.0
+0.0
 1
 1
 NIL
@@ -1796,7 +1810,7 @@ population-0
 population-0
 0
 100
-24.0
+0.0
 1
 1
 NIL
@@ -1811,7 +1825,7 @@ population-1
 population-1
 0
 100
-24.0
+0.0
 1
 1
 NIL
