@@ -36,8 +36,6 @@ Learners-own [
   ;p-chemical            ;; amount of pheromone on the patch-here
   ;; cluster
   cluster-gradient      ;; direction where cluster is stronger
-  ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
-  ticks-in-w-cluster    ;; time spent in the wrong cluster
   ;; misc
   reward-list           ;; list of rewards got so far
   last-action
@@ -51,6 +49,8 @@ turtles-own [           ;; these variables are also inherited by learners
   in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
   in-cluster-0          ;; boolean indicating if it is in cluster 0
   in-cluster-1          ;; boolean indicating if it is in cluster 1
+  ticks-in-w-cluster    ;; time spent in the wrong cluster
+  ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -110,11 +110,11 @@ end
 to setup-learning                  ;; RL
   setup
 
-  ;set actions ["move-toward-chemical-0" "drop-chemical-0" "random-walk" "move-toward-chemical-1" "drop-chemical-1"]
+  set actions ["move-toward-chemical-0" "drop-chemical-0" "random-walk" "move-toward-chemical-1" "drop-chemical-1"]
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
-  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
@@ -167,7 +167,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "species-test-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "species-test-02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -175,16 +175,16 @@ to setup-learning                  ;; RL
   set episode 1
 
   ask Learners [
-    ;qlearningextension:state-def ["chemical-0-here" "chemical-1-here" "in-cluster-0" "in-cluster-1"]
+    qlearningextension:state-def ["chemical-0-here" "chemical-1-here" "in-cluster-0" "in-cluster-1"]
     ;qlearningextension:state-def ["cluster-gradient" "in-cluster"]
     ;qlearningextension:state-def ["chemical-gradient" "in-cluster"]
     ;qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
-    qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
-    ;(qlearningextension:actions [move-toward-chemical-0] [drop-chemical-0] [random-walk] [move-toward-chemical-1] [drop-chemical-1])
+    ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
+    (qlearningextension:actions [move-toward-chemical-0] [drop-chemical-0] [random-walk] [move-toward-chemical-1] [drop-chemical-1])
     ;(qlearningextension:actions [random-walk] [stand-still])
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
-    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
+    qlearningextension:reward [species-nooverlap]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
     qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -526,354 +526,26 @@ to-report scatter03  ;; incentivise scattering, not clustering!
   report rew
 end
 
-to-report rewSpecies8  ;; variation of rewardFunc8 -- BEST behaviors with this
-  let rew cluster
-  let chem 0
-  let gchem 0
-  let avoid-0 0
-
-  ifelse species = 0  ;; type of chemical dropped / attracted
-  [
-    set cluster cluster-0
-    set chem chemical-1-here
-    set gchem chemical-0-here
-  ]
-  [
-    set cluster cluster-1
-    set chem chemical-0-here
-    set gchem chemical-1-here
-  ]
-
-  if (chemical-0-here + chemical-1-here) = 0
-  [ set avoid-0 1 ]
-
-    set rew
-        ((ticks-in-cluster / ticks-per-episode) * reward)
-        +
-        ((cluster / cluster-threshold) * (reward ^ 2))  ;; correct cluster contribution
-        +
-        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
-        +
-        (gchem / (chemical-0-here + chemical-1-here + avoid-0) * reward)  ;; ???
-        +
-        ((ticks-in-w-cluster / ticks-per-episode) * penalty)  ;; wrong cluster time contribution
-
-      set reward-list lput rew reward-list
-   ;]
-  report rew
-end
-
-to-report rewSpecies-overlap  ;; allows different clusters to overlap
-  let rew 0
-  let good-cluster 0
-  let bad-cluster 0
-
-  ;; Check the turtle's species -- 1
-  ifelse species = 1
-  [
-    set good-cluster cluster-1
-
-    ;; Checking cluster type
-    ifelse in-cluster-1
-    [ set good-cluster cluster-1 ^ 2 ]  ;; if the cluster already is above threshold the reward should be high!
-    [
-      if in-cluster-0
-      [ set bad-cluster cluster-0 ]
-    ]
-  ]
-  ;; other species -- 0
-  [
-    set good-cluster cluster-0
-
-    ;; Checking cluster type
-    ifelse in-cluster-0
-    [ set good-cluster cluster-0 ^ 2 ]
-    [
-      if in-cluster-0
-      [ set bad-cluster cluster-1 ]
-    ]
-  ]
-
-  set rew
-      ((ticks-in-cluster / ticks-per-episode) * reward)                                                    ;; Reward if a turtle wants to stay in cluster
+to-report species-nooverlap
+  let correct-cluster cluster
+  let wrong-cluster 0
+  if species = 0
+    [ set correct-cluster cluster-0
+      set wrong-cluster cluster-1 ]
+  if species = 1
+    [ set correct-cluster cluster-1
+      set wrong-cluster cluster-0 ]
+  let rew
+      ((ticks-in-cluster / ticks-per-episode) * reward)
       +
-      ((good-cluster / cluster-threshold) * (reward ^ 2))                                                  ;; Great reward for being in the right cluster
-      +
-      (((ticks-per-episode - ticks-in-cluster - ticks-in-w-cluster) / ticks-per-episode) * penalty)        ;; Punish if a turtle spends time just wandering around
-      +
-      ((bad-cluster / cluster-threshold) * (penalty * 10))                                                 ;; Great penalty for being in the wrong cluster (maybe too big)
-      ;+
-      ;((ticks-in-w-cluster / ticks-per-episode) * (penalty * 2))                                           ;; Punish more if a turtle spends time in the wrong cluster
-
-  set reward-list lput rew reward-list
-
-  report rew
-end
-
-to-report rewSpecies-nooverlap
-  let rew 0
-  let good-cluster 0
-  let bad-cluster 0
-
-  ;; Check the turtle's species -- 1
-  ifelse species = 1
-  [
-    if in-cluster-1 and not in-cluster-0
-      [ set good-cluster cluster-1 ]
-    if in-cluster-1 and in-cluster-0
-      [ set bad-cluster cluster-0 ]
-    if not in-cluster-1 and not in-cluster-0
-      [ ifelse cluster-1 > cluster-0
-          [ set good-cluster cluster-1 ]
-          [ set bad-cluster cluster-0 ]
-      ]
-    if not in-cluster-1 and in-cluster-0
-      [ set bad-cluster cluster-0 ]
-
-  ]
-  ;; other species -- 0
-  [
-    if in-cluster-0 and not in-cluster-1
-      [ set good-cluster cluster-0 ]
-    if in-cluster-0 and in-cluster-1
-      [ set bad-cluster cluster-1 ]
-    if not in-cluster-0 and not in-cluster-1
-      [ ifelse cluster-0 > cluster-1
-          [ set good-cluster cluster-0 ]
-          [ set bad-cluster cluster-1 ]
-      ]
-    if not in-cluster-0 and in-cluster-1
-      [ set bad-cluster cluster-1 ]
-  ]
-
-  set rew
-      ((ticks-in-cluster / ticks-per-episode) * reward)                                                    ;; Reward if a turtle wants to stay in cluster
-      +
-      ((good-cluster / cluster-threshold) * (reward ^ 2))                                                  ;; Great reward for being in the right cluster
-      +
-      (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)        ;; Punish if a turtle spends time just wandering around
-      +
-      ((bad-cluster / cluster-threshold) * (penalty * 10))                                                 ;; Great penalty for being in the wrong cluster (maybe too big)
-      ;+
-      ;((ticks-in-w-cluster / ticks-per-episode) * (penalty * 2))                                           ;; Punish more if a turtle spends time in the wrong cluster
-
-  set reward-list lput rew reward-list
-
-  report rew
-end
-
-to-report rewSpecies10  ;; Changes to func9 by including also the amount of chemical of the right type to promote the dropping of the right one
-  ;; Variables used in the reward computation
-  let rew 0
-  let good-cluster 0
-  let bad-cluster 0
-  let good-chem 0
-  let bad-chem 0
-
-  ;; Check the turtle's species -- 1
-  ifelse species = 1
-  [
-    set rew cluster-1
-    set good-chem chemical-1-here
-    set bad-chem chemical-0-here
-
-    ;; Checking cluster type
-    if in-cluster-1
-    [
-      set good-cluster cluster-1
-      set bad-cluster 0
-    ]
-    if in-cluster-0
-    [
-      set bad-cluster cluster-0
-      set good-cluster 0
-    ]
-  ]
-  ;; other species -- 0
-  [
-    set rew cluster-0
-    set good-chem chemical-0-here
-    set bad-chem chemical-1-here
-
-    ;; Checking cluster type
-    if in-cluster-0
-    [
-      set good-cluster cluster-0
-      set bad-cluster 0
-    ]
-    if in-cluster-0
-    [
-      set bad-cluster cluster-1
-      set good-cluster 0
-    ]
-  ]
-
-  let total-chem (good-chem + bad-chem)
-  if total-chem = 0
-  [ set total-chem 1 ] ;; WARNING: just to avoid division by 0
-
-  set rew
-      ((ticks-in-cluster / ticks-per-episode) * reward)                                                    ;; Reward if a turtle wants to stay in cluster
-      +
-      (((ticks-per-episode - ticks-in-cluster - ticks-in-w-cluster) / ticks-per-episode) * penalty)        ;; Punish if a turtle spends time just wandering around
-      +
-      ((ticks-in-w-cluster / ticks-per-episode) * (penalty * 2))                                           ;; Punish more if a turtle spends time in the wrong cluster
-      +
-      ((good-cluster / cluster-threshold) * (reward ^ 2))                                                  ;; Great reward for being in the right cluster
-      +
-      ((bad-cluster / cluster-threshold) * penalty)                                                        ;; Penalty for being in the wrong cluster (resized)
-      +
-      ((good-chem / total-chem) * (reward ^ 2))                                                            ;; Reward for being in pathces with right type of chemical
-      +
-      ((bad-chem / total-chem) * penalty)                                                                  ;; Penalty for being in pathces with wrong type of chemical
-
-  set reward-list lput rew reward-list
-
-  report rew
-end
-
-to-report rewSpecies11  ;; Changes to func10 reducing the importance of dropping same type chemical to factor in the clustering as primal mover
-  ;; Variables used in the reward computation
-  let rew 0
-  let good-cluster 0
-  let bad-cluster 0
-  let good-chem 0
-  let bad-chem 0
-
-  ;; Check the turtle's species -- 1
-  ifelse species = 1
-  [
-    set rew cluster-1
-    set good-chem chemical-1-here
-    set bad-chem chemical-0-here
-
-    ;; Checking cluster type
-    if in-cluster-1
-    [
-      set good-cluster cluster-1
-      set bad-cluster 0
-    ]
-    if in-cluster-0
-    [
-      set bad-cluster cluster-0
-      set good-cluster 0
-    ]
-  ]
-  ;; other species -- 0
-  [
-    set rew cluster-0
-    set good-chem chemical-0-here
-    set bad-chem chemical-1-here
-
-    ;; Checking cluster type
-    if in-cluster-0
-    [
-      set good-cluster cluster-0
-      set bad-cluster 0
-    ]
-    if in-cluster-0
-    [
-      set bad-cluster cluster-1
-      set good-cluster 0
-    ]
-  ]
-
-  let total-chem (good-chem + bad-chem)
-  if total-chem = 0
-  [ set total-chem 1 ] ;; WARNING: just to avoid division by 0
-
-  set rew
-      ((ticks-in-cluster / ticks-per-episode) * (reward ^ 2))                                                    ;; Reward if a turtle wants to stay in cluster (resized)
-      +
-      (((ticks-per-episode - ticks-in-cluster - ticks-in-w-cluster) / ticks-per-episode) * penalty)              ;; Punish if a turtle spends time just wandering around
-      +
-      ((ticks-in-w-cluster / ticks-per-episode) * (penalty * 2))                                                 ;; Punish more if a turtle spends time in the wrong cluster
-      +
-      ((good-cluster / cluster-threshold) * (reward ^ 2))                                                        ;; Great reward for being in the right cluster
-      +
-      ((bad-cluster / cluster-threshold) * penalty)                                                              ;; Penalty for being in the wrong cluster
-      +
-      ((good-chem / total-chem) * reward)                                                                        ;; Reward for being in pathces with right type of chemical (resized)
-      +
-      ((bad-chem / total-chem) * penalty)                                                                        ;; Penalty for being in pathces with wrong type of chemical
-
-  set reward-list lput rew reward-list
-
-  report rew
-end
-
-to-report rewSpecies12  ;; Tweaks to func11
-  ;; Variables used in the reward computation
-  let rew 0
-  let good-cluster 0
-  let bad-cluster 0
-  let good-chem 0
-  let bad-chem 0
-  let c-avg-0 avg-cluster-0?
-  let c-avg-1 avg-cluster-1?
-  let avg 0
-
-  ;; Check the turtle's species -- 1
-  ifelse species = 1
-  [
-    set good-chem chemical-1-here
-    set bad-chem chemical-0-here
-    set avg c-avg-1
-
-    ;; Checking cluster type
-    if in-cluster-1
-    [
-      set good-cluster cluster-1
-      set bad-cluster 0
-    ]
-    if in-cluster-0
-    [
-      set bad-cluster cluster-0
-      set good-cluster 0
-    ]
-  ]
-  ;; other species -- 0
-  [
-    set good-chem chemical-0-here
-    set bad-chem chemical-1-here
-    set avg c-avg-0
-
-    ;; Checking cluster type
-    if in-cluster-0
-    [
-      set good-cluster cluster-0
-      set bad-cluster 0
-    ]
-    if in-cluster-0
-    [
-      set bad-cluster cluster-1
-      set good-cluster 0
-    ]
-  ]
-
-  let total-chem (good-chem + bad-chem)
-  if total-chem = 0
-  [ set total-chem 1 ] ;; WARNING: just to avoid division by 0
-
-  set rew
-      ((avg ^ 2) * reward)
-      +
-      ((ticks-in-cluster / ticks-per-episode) * (reward ^ 2))                                                                ;; Reward if a turtle wants to stay in cluster
-      +
-      ((ticks-in-w-cluster / ticks-per-episode) * penalty)                                                             ;; Punish if a turtle spends time in the wrong cluster
+      ((correct-cluster / cluster-threshold) * (reward ^ 2))
       +
       (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
-      +
-      ((good-cluster / cluster-threshold) * (reward ^ 2))                                                              ;; Reward for being in the right cluster
-      ;+
-      ;((bad-cluster / cluster-threshold) * penalty)                                                                    ;; Penalty for being in the wrong cluster
-      +
-      ((good-chem / total-chem) * reward)                                                                       ;; Reward for being in pathces with right type of chemical
-      ;;+
-      ;;((bad-chem / total-chem) * (penalty / 10))                                                                       ;; Penalty for being in pathces with wrong type of chemical
-
+      -
+      ((wrong-cluster / cluster-threshold) * (reward ^ 2))
+      -
+      ((ticks-in-w-cluster / ticks-per-episode) * reward)
   set reward-list lput rew reward-list
-
   report rew
 end
 
@@ -1096,7 +768,7 @@ to check-cluster-adv ;; learners only --- not resetting ticks-in-cluster and tic
       set ticks-in-cluster ticks-in-cluster + 1 ]
     [ set in-cluster false ]
   set cluster-0 count turtles in-radius cluster-radius with [species = 0]   ;; Count how many species 0 turtles are in cluster range
-  set cluster-1 count turtles in-radius cluster-radius with [species = 1]    ;; Count how many species 1 turtles are in cluster range
+  set cluster-1 count turtles in-radius cluster-radius with [species = 1]   ;; Count how many species 1 turtles are in cluster range
 
   ifelse cluster-0 > cluster-threshold or cluster-1 > cluster-threshold
   [ set is-there-cluster true ]
@@ -1140,44 +812,6 @@ to check-cluster-adv ;; learners only --- not resetting ticks-in-cluster and tic
       ]
     ]
   ]
-end
-
-;;;;;;;;;;;;;;;;;;;;;
-;; SHOW procedures ;;
-;;;;;;;;;;;;;;;;;;;;;
-
-;to setup-individual-plot
-;  set-current-plot "Average cluster size in # of turtles within cluster-radius"
-;  create-temporary-plot-pen (word who)
-;  let p-color scale-color one-of base-colors who 0 count turtles
-;  set-plot-pen-color p-color
-;end
-
-to setup-global-plot [p-name pen-name pen-color]
-  set-current-plot p-name
-  create-temporary-plot-pen pen-name
-  set-plot-pen-color pen-color
-end
-
-;to plot-individual
-;  set-current-plot "Average cluster size in # of turtles within cluster-radius"
-;  set-current-plot-pen (word who)
-;  plot cluster
-;end
-
-to plot-global [p-name pen-name what]
-  set-current-plot p-name
-  set-current-plot-pen pen-name
-  plot what
-end
-
-to log-ticks [msg what]
-  if (((ticks + 1) mod print-every) = 0)
-    [ type "t" type ticks type ") " type msg print what ]
-end
-
-to log-episodes [msg what]
-  type "E" type episode type ") " type msg print what
 end
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -1311,6 +945,44 @@ to print-table-table [tabtab sep]
   file-print ""
 end
 
+;;;;;;;;;;;;;;;;;;;;;
+;; SHOW procedures ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+;to setup-individual-plot
+;  set-current-plot "Average cluster size in # of turtles within cluster-radius"
+;  create-temporary-plot-pen (word who)
+;  let p-color scale-color one-of base-colors who 0 count turtles
+;  set-plot-pen-color p-color
+;end
+
+to setup-global-plot [p-name pen-name pen-color]
+  set-current-plot p-name
+  create-temporary-plot-pen pen-name
+  set-plot-pen-color pen-color
+end
+
+;to plot-individual
+;  set-current-plot "Average cluster size in # of turtles within cluster-radius"
+;  set-current-plot-pen (word who)
+;  plot cluster
+;end
+
+to plot-global [p-name pen-name what]
+  set-current-plot p-name
+  set-current-plot-pen pen-name
+  plot what
+end
+
+to log-ticks [msg what]
+  if (((ticks + 1) mod print-every) = 0)
+    [ type "t" type ticks type ") " type msg print what ]
+end
+
+to log-episodes [msg what]
+  type "E" type episode type ") " type msg print what
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LOGGING procedures ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1339,10 +1011,11 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.999 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
-  file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
+  file-type "OBSERVATION SPACE: " file-type "chemical-0-here " file-type "chemical-1-here " file-type "in-cluster-0 " file-print "in-cluster-1"
+  ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   ;file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewSpecies-nooverlap"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
@@ -1596,7 +1269,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-35.0
+20.0
 1
 1
 NIL
@@ -1608,7 +1281,7 @@ INPUTBOX
 1366
 423
 ticks-per-episode
-500.0
+1000.0
 1
 0
 Number
@@ -1744,7 +1417,7 @@ learning-turtles
 learning-turtles
 0
 100
-50.0
+0.0
 1
 1
 NIL
@@ -1774,13 +1447,13 @@ log-data?
 SLIDER
 1394
 167
-1431
+1427
 317
 learning-turtles-0
 learning-turtles-0
 0
 100
-0.0
+30.0
 1
 1
 NIL
@@ -1789,13 +1462,13 @@ VERTICAL
 SLIDER
 1437
 167
-1474
+1470
 317
 learning-turtles-1
 learning-turtles-1
 0
 100
-0.0
+30.0
 1
 1
 NIL
