@@ -16,6 +16,8 @@ globals [
   turtle-distribution
   filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
+  g-reward-list-0
+  g-reward-list-1
   episode               ;; progressive number of the currently running episode (hence number of episodes run)
   is-there-cluster]     ;; is there at least one cluser in the whole environment? (boolean)
 
@@ -167,11 +169,13 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "species-test-02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "species-test-03-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
   set g-reward-list []
+  set g-reward-list-0 []
+  set g-reward-list-1 []
   set episode 1
 
   ask Learners [
@@ -332,6 +336,8 @@ to learn                                       ;; RL
     log-ticks "average cluster-1 size in # of turtles: " c-avg-1
 
     let g-avg-rew 0
+    let g-avg-rew-0 0
+    let g-avg-rew-1 0
 
     if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
@@ -350,8 +356,14 @@ to learn                                       ;; RL
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
       set g-avg-rew avg? g-reward-list
+      set g-avg-rew-0 avg? g-reward-list-0
+      set g-avg-rew-1 avg? g-reward-list-1
       plot-global "Average reward per episode" "average reward" g-avg-rew
+      plot-global "Average reward per episode" "average reward 0" g-avg-rew-0
+      plot-global "Average reward per episode" "average reward 1" g-avg-rew-1
       log-episodes "average reward per episode: " g-avg-rew
+      log-episodes "average reward 0 per episode: " g-avg-rew-0
+      log-episodes "average reward 1 per episode: " g-avg-rew-1
       type "Actions distribution: " print action-distribution
       type "Turtles distribution: " print turtle-distribution
       setup-action-distribution-table actions
@@ -526,7 +538,7 @@ to-report scatter03  ;; incentivise scattering, not clustering!
   report rew
 end
 
-to-report species-nooverlap
+to-report species-nooverlap  ;; APPARENTLY, NOT WORKING AT ALL: turtles mostly roam around initial locations, hence seems like pnalties are too much
   let correct-cluster cluster
   let wrong-cluster 0
   if species = 0
@@ -541,6 +553,29 @@ to-report species-nooverlap
       ((correct-cluster / cluster-threshold) * (reward ^ 2))
       +
       (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
+      -
+      ((wrong-cluster / cluster-threshold) * (reward ^ 2))
+      -
+      ((ticks-in-w-cluster / ticks-per-episode) * reward)
+  set reward-list lput rew reward-list
+  report rew
+end
+
+to-report species-nooverlap-v2  ;; Trying to lower penalty for exploration
+  let correct-cluster cluster
+  let wrong-cluster 0
+  if species = 0
+    [ set correct-cluster cluster-0
+      set wrong-cluster cluster-1 ]
+  if species = 1
+    [ set correct-cluster cluster-1
+      set wrong-cluster cluster-0 ]
+  let rew
+      ((ticks-in-cluster / ticks-per-episode) * reward)
+      +
+      ((correct-cluster / cluster-threshold) * (reward ^ 2))
+      ;+
+      ;(((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty)
       -
       ((wrong-cluster / cluster-threshold) * (reward ^ 2))
       -
