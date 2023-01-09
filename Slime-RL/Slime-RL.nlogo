@@ -169,7 +169,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "species-test-03-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "species-test-05-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -188,7 +188,7 @@ to setup-learning                  ;; RL
     ;(qlearningextension:actions [random-walk] [stand-still])
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
-    qlearningextension:reward [species-nooverlap]                                            ;; the reward function used
+    qlearningextension:reward [species-nooverlap-v3]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
     qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -561,7 +561,7 @@ to-report species-nooverlap  ;; APPARENTLY, NOT WORKING AT ALL: turtles mostly r
   report rew
 end
 
-to-report species-nooverlap-v2  ;; Trying to lower penalty for exploration
+to-report species-nooverlap-v2  ;; Trying to lower penalty for exploration, CIRCA SAME BEHAVIOUR AS BEFORE: main issue seem to be agents are not incentivized to drop the right pheromone
   let correct-cluster cluster
   let wrong-cluster 0
   if species = 0
@@ -580,6 +580,37 @@ to-report species-nooverlap-v2  ;; Trying to lower penalty for exploration
       ((wrong-cluster / cluster-threshold) * (reward ^ 2))
       -
       ((ticks-in-w-cluster / ticks-per-episode) * reward)
+  set reward-list lput rew reward-list
+  report rew
+end
+
+to-report species-nooverlap-v3  ;; Trying to incentivise right pheromone
+  let correct-cluster cluster
+  let wrong-cluster 0
+  let correct-chem [chemical] of patch-here
+  let wrong-chem 0
+  if species = 0
+    [ set correct-cluster cluster-0
+      set wrong-cluster cluster-1
+      set correct-chem [chemical-0] of patch-here
+      set wrong-chem [chemical-1] of patch-here ]
+  if species = 1
+    [ set correct-cluster cluster-1
+      set wrong-cluster cluster-0
+      set correct-chem [chemical-1] of patch-here
+      set wrong-chem [chemical-0] of patch-here ]
+  let rew
+      ((ticks-in-cluster / ticks-per-episode) * reward)                        ;; positive
+      +
+      ((correct-cluster / cluster-threshold) * (reward ^ 2))                   ;; positive
+      +
+      ((correct-chem - wrong-chem) * (reward ^ 2))                             ;; can become negative
+      +
+      (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * penalty) ;; negative
+      -
+      ((wrong-cluster / cluster-threshold) * (reward ^ 2))                     ;; negative
+      -
+      ((ticks-in-w-cluster / ticks-per-episode) * reward)                      ;; negative
   set reward-list lput rew reward-list
   report rew
 end
@@ -1050,7 +1081,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   ;file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "rewSpecies-nooverlap"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewSpecies-nooverlap-v3"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
   file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
