@@ -117,7 +117,7 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
   ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
-  ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
+  set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
 
@@ -2404,6 +2404,7 @@ NetLogo 6.2.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-threshold">
       <value value="25"/>
+      <value value="35"/>
       <value value="50"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="discount-factor">
@@ -2443,6 +2444,7 @@ NetLogo 6.2.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="penalty">
       <value value="-1"/>
+      <value value="-2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="learning-turtles">
       <value value="50"/>
@@ -2459,7 +2461,6 @@ NetLogo 6.2.1
     <enumeratedValueSet variable="learning-rate">
       <value value="0.1"/>
       <value value="0.01"/>
-      <value value="0.001"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="baseline-02" repetitions="1" runMetricsEveryStep="false">
