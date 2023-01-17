@@ -25,13 +25,13 @@ Learners-own [
   cluster-gradient     ;; direction where cluster is stronger
   p-chemical            ;; amount of pheromone on the patch-here
   reward-list           ;; list of rewards got so far
-  last-action
 ]
 
 turtles-own [           ;; these variables are also inherited by learners
   ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
   cluster               ;; number of turtles within cluster-radius
   in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
+  last-action
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -57,10 +57,40 @@ to setup                           ;; NO RL here (some RL variables are initiali
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
 
+  set actions ["move-and-drop" "walk-and-drop"]  ;; NB MODIFY ACTIONS LIST HERE
+  setup-action-distribution-table actions
+  type "Actions distribution: " print action-distribution
+
+  setup-turtle-distribution-table turtles
+  type "Turtles distribution: " print turtle-distribution
+
+  if log-data?
+    [ set filename (word "BS-baseline-nolearn-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+      print filename
+      file-open filename
+      log-params-nolearn ]
+
 end
 
 to setup-learning                  ;; RL
-  setup
+  clear-all
+
+  create-turtles population
+  [ set color blue
+    set size 2
+    setxy random-xcor random-ycor
+    set ticks-in-cluster 0
+    set cluster 0
+    set in-cluster false
+    if label?
+      [ set label who ] ]
+  set episode 1
+
+  ask patches [ set chemical 0 ]
+  set is-there-cluster false
+
+  reset-ticks
+  setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
 
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
@@ -117,13 +147,25 @@ end
 ;;;;;;;;;;;;;;;;;;;
 
 to go                                              ;; NO RL
-  ask turtles
+  if episode <= episodes                        ;; = learning episodes not finished
+  [ ask turtles
   [ check-cluster
     ;plot-individual
     ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
-      [ move-toward-chemical ]
-      [ random-walk ]
-    drop-chemical ]                                ;; drop chemical onto patch
+      [ move-and-drop]
+      [ walk-and-drop ]
+    ;drop-chemical                                  ;; drop chemical onto patch
+
+    ifelse table:has-key? action-distribution last-action
+      [ let n table:get action-distribution last-action
+        table:put action-distribution last-action n + 1 ]
+      [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <action-distribution> table!" ]
+    let turtles-table table:get turtle-distribution who
+    ifelse table:has-key? turtles-table last-action
+      [ let n table:get turtles-table last-action
+        table:put turtles-table last-action n + 1 ]
+      [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <turtle-distribution> table!" ]
+  ]
 
   diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
   ask patches
@@ -134,7 +176,46 @@ to go                                              ;; NO RL
   plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
   log-ticks "average cluster size in # of turtles: " c-avg
 
+  if log-data?
+      [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
+        [
+          let g-avg-rew 0
+          file-open filename
+          ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
+          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          print-table action-distribution ", "
+          print-table-table turtle-distribution ", "
+        ]
+      ]
+
+    if (((ticks + 1) mod ticks-per-episode) = 0) [                         ;; an episode has just ended
+    ;if (ticks > 1) and (is-there-cluster = true) [
+      clear-patches                                                        ;; clear chemical
+      set is-there-cluster false                                           ;; reset state variables
+      let g-avg-rew 0
+      ;plot-global "Average reward per episode" "average reward" g-avg-rew
+      log-episodes "average reward per episode: " 0
+      type "Actions distribution: " print action-distribution
+      type "Turtles distribution: " print turtle-distribution
+      setup-action-distribution-table actions
+      setup-turtle-distribution-table turtles
+      set g-reward-list []
+      set episode episode + 1
+
+      ask turtles [                                                        ;; reset non learners too
+        if not (breed = Learners)
+          [
+            setxy random-xcor random-ycor
+            set ticks-in-cluster 0
+            set cluster 0
+            set in-cluster false
+          ]
+      ]
+    ]
+
   tick
+  ]
+  file-close-all
 end
 
 to learn                                       ;; RL
@@ -455,8 +536,8 @@ to dont-drop-chemical  ;; turtle procedure
 end
 
 to move-and-drop  ;; turtle procedure (can't reuse code due to last-action saving (would compromise tracking of last actions performed!))
-  if breed = Learners
-    [ set last-action "move-and-drop" ]
+  ;if breed = Learners
+     set last-action "move-and-drop"
   let ahead [chemical] of patch-ahead look-ahead
   let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
   let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
@@ -469,8 +550,8 @@ to move-and-drop  ;; turtle procedure (can't reuse code due to last-action savin
 end
 
 to walk-and-drop  ;; turtle procedure (can't reuse code due to last-action saving (would compromise tracking of last actions performed!))
-  if breed = Learners
-    [ set last-action "walk-and-drop" ]
+  ;if breed = Learners
+     set last-action "walk-and-drop"
   ifelse (random-float 1) > 0.5
     [ rt random-float wiggle-angle ]
     [ lt random-float wiggle-angle ]
@@ -722,6 +803,41 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   print-turtle-actions sort Learners actions ", "
 end
 
+to log-params-nolearn  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", and "REWARD" (everything else is logged automatically)
+  file-print "--------------------------------------------------------------------------------"
+  file-type "TIMESTAMP: " file-print date-and-time
+  file-print "PARAMS:"
+  file-type "  population " file-print population
+  file-type "  wiggle-angle " file-print wiggle-angle
+  file-type "  look-ahead " file-print look-ahead
+  file-type "  sniff-threshold " file-print sniff-threshold
+  file-type "  sniff-angle " file-print sniff-angle
+  file-type "  chemical-drop " file-print chemical-drop
+  file-type "  diffuse-share " file-print diffuse-share
+  file-type "  evaporation-rate " file-print evaporation-rate
+  file-type "  cluster-threshold " file-print cluster-threshold
+  file-type "  cluster-radius " file-print cluster-radius
+  file-type "  learning-turtles " file-print learning-turtles
+  file-type "  ticks-per-episode " file-print ticks-per-episode
+  file-type "  episodes " file-print episodes
+  ;file-type "  learning-rate " file-print learning-rate
+  ;file-type "  discount-factor " file-print discount-factor
+  ;file-type "  reward " file-print reward
+  ;file-type "  penalty " file-print penalty
+  ;file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.999 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "ACTION SPACE: "
+  print-actions actions " " file-print ""
+  ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
+  ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  ;file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
+  ;file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-print "--------------------------------------------------------------------------------"
+  ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
+  file-type "Episode, " file-type "Tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
+  print-actions actions ", "
+  print-turtle-actions sort turtles actions ", "
+end
+
 ; Copyright 2022 Stefano Mariani
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -760,7 +876,7 @@ population
 population
 0
 1000
-50.0
+0.0
 10
 1
 NIL
@@ -1114,7 +1230,7 @@ SLIDER
 318
 learning-turtles
 learning-turtles
-1
+0
 100
 50.0
 1
