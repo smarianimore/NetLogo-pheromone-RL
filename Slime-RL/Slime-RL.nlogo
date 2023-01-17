@@ -2224,6 +2224,72 @@ NetLogo 6.2.1
       <value value="0.001"/>
     </enumeratedValueSet>
   </experiment>
+  <experiment name="baseline-nolearn" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.95"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="5000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+  </experiment>
 </experiments>
 @#$#@#$#@
 @#$#@#$#@
