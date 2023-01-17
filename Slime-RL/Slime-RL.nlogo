@@ -96,7 +96,8 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
   ;set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
-  set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
+  set actions ["move-and-drop" "walk-and-drop"]
+  ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
 
@@ -116,7 +117,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-5actions-gradient-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-2actions-gradient-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -130,7 +131,8 @@ to setup-learning                  ;; RL
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
+    ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
+    (qlearningextension:actions [move-and-drop] [walk-and-drop])
     qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
@@ -2222,6 +2224,77 @@ NetLogo 6.2.1
     <enumeratedValueSet variable="learning-rate">
       <value value="0.1"/>
       <value value="0.001"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="2actions-grad-02" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup-learning</setup>
+    <go>learn</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="25"/>
+      <value value="35"/>
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.9"/>
+      <value value="0.999"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="5"/>
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+      <value value="-2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.1"/>
+      <value value="0.01"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="baseline-nolearn" repetitions="1" runMetricsEveryStep="true">
