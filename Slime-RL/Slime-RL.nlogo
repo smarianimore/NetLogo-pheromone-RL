@@ -13,7 +13,10 @@ globals [
   filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
   episode               ;; progressive number of the currently running episode (hence number of episodes run)
-  is-there-cluster]     ;; is there at least one cluser in the whole environment? (boolean)
+  is-there-cluster      ;; is there at least one cluser in the whole environment? (boolean)
+  first-cluster
+  cluster-tick
+]
 
 patches-own [chemical]  ;; amount of pheromone in the patch
 
@@ -52,7 +55,10 @@ to setup                           ;; NO RL here (some RL variables are initiali
       [ set label who ] ]
 
   ask patches [ set chemical 0 ]
+  set episode 1
   set is-there-cluster false
+  set first-cluster true
+  set cluster-tick -1
 
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
@@ -88,6 +94,8 @@ to setup-learning                  ;; RL
 
   ask patches [ set chemical 0 ]
   set is-there-cluster false
+  set first-cluster true
+  set cluster-tick -1
 
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
@@ -178,13 +186,19 @@ to go                                              ;; NO RL
   plot-global "Average cluster size in # of turtles within cluster-radius" "# of turtles" c-avg
   log-ticks "average cluster size in # of turtles: " c-avg
 
+  if is-there-cluster
+      [ if first-cluster
+        [ set cluster-tick ticks - (ticks-per-episode * (episode - 1))
+          set first-cluster false
+          type "t" type cluster-tick print ") FIRST CLUSTER!" ] ]
+
   if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
           let g-avg-rew 0
           file-open filename
           ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
-          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
           print-table action-distribution ", "
           print-table-table turtle-distribution ", "
         ]
@@ -194,6 +208,8 @@ to go                                              ;; NO RL
     ;if (ticks > 1) and (is-there-cluster = true) [
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
+      set first-cluster true
+      set cluster-tick -1
       let g-avg-rew 0
       ;plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " 0
@@ -267,13 +283,20 @@ to learn                                       ;; RL
 
     let g-avg-rew 0
 
+    if is-there-cluster
+      [ if first-cluster
+        [ set cluster-tick ticks - (ticks-per-episode * (episode - 1))
+          set first-cluster false
+          type "t" type cluster-tick print ") FIRST CLUSTER!" ] ]
+
+
     if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
           set g-avg-rew avg? g-reward-list
           file-open filename
           ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
-          file-type episode file-type ", " file-type ticks file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
           print-table action-distribution ", "
           print-table-table turtle-distribution ", "
         ]
@@ -283,6 +306,8 @@ to learn                                       ;; RL
     ;if (ticks > 1) and (is-there-cluster = true) [
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
+      set first-cluster true
+      set cluster-tick -1
       set g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
@@ -616,7 +641,7 @@ end
 
 to check-cluster  ;; turtle procedure
   set cluster count turtles in-radius cluster-radius
-  ifelse cluster > cluster-threshold
+  ifelse cluster >= cluster-threshold
     [ set in-cluster true
       set is-there-cluster true
       set ticks-in-cluster ticks-in-cluster + 1 ]
@@ -878,7 +903,7 @@ population
 population
 0
 1000
-0.0
+50.0
 10
 1
 NIL
@@ -1234,7 +1259,7 @@ learning-turtles
 learning-turtles
 0
 100
-50.0
+0.0
 1
 1
 NIL
