@@ -58,7 +58,7 @@ to setup                           ;; NO RL here (some RL variables are initiali
   set episode 1
   set is-there-cluster false
   set first-cluster true
-  set cluster-tick -1
+  set cluster-tick ticks-per-episode
 
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
@@ -95,7 +95,7 @@ to setup-learning                  ;; RL
   ask patches [ set chemical 0 ]
   set is-there-cluster false
   set first-cluster true
-  set cluster-tick -1
+  set cluster-tick ticks-per-episode
 
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
@@ -209,7 +209,7 @@ to go                                              ;; NO RL
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
       set first-cluster true
-      set cluster-tick -1
+      set cluster-tick ticks-per-episode
       let g-avg-rew 0
       ;plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " 0
@@ -307,7 +307,7 @@ to learn                                       ;; RL
       clear-patches                                                        ;; clear chemical
       set is-there-cluster false                                           ;; reset state variables
       set first-cluster true
-      set cluster-tick -1
+      set cluster-tick ticks-per-episode
       set g-avg-rew avg? g-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
