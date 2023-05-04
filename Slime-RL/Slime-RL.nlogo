@@ -103,7 +103,7 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
-  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  set actions ["move-away-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-and-drop" "walk-and-drop"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
@@ -138,7 +138,7 @@ to setup-learning                  ;; RL
     qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
     qlearningextension:reward [scatter01]                                            ;; the reward function used
@@ -508,6 +508,22 @@ to move-toward-chemical  ;; turtle procedure
   [ rt sniff-angle ]
   [ if myleft >= ahead
     [ lt sniff-angle ] ]
+  fd 1                    ;; default don't turn
+end
+
+to move-away-chemical  ;; turtle procedure
+  if breed = Learners
+    [ set last-action "move-away-chemical" ]
+  ;; examine the patch ahead of you and two nearby patches;
+  ;; turn in the direction of greatest chemical
+  let ahead [chemical] of patch-ahead look-ahead
+  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
+  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ lt sniff-angle ]
+  [ ifelse myleft >= ahead
+    [ rt sniff-angle ]
+    [ lt 180 ] ]
   fd 1                    ;; default don't turn
 end
 
@@ -2356,6 +2372,79 @@ NetLogo 6.3.0
     </enumeratedValueSet>
     <enumeratedValueSet variable="learning-rate">
       <value value="0.05"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="scatter01-move-away-action" repetitions="5" runMetricsEveryStep="false">
+    <setup>setup-learning</setup>
+    <go>learn</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="1"/>
+      <value value="5"/>
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.9"/>
+      <value value="0.999"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="3"/>
+      <value value="5"/>
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+      <value value="-5"/>
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.1"/>
+      <value value="0.01"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
