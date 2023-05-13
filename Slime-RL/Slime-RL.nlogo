@@ -2374,7 +2374,7 @@ NetLogo 6.3.0
       <value value="0.05"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="scatter01-move-away-action" repetitions="5" runMetricsEveryStep="false">
+  <experiment name="scatter01-move-away-action" repetitions="1" runMetricsEveryStep="false">
     <setup>setup-learning</setup>
     <go>learn</go>
     <exitCondition>episode &gt; episodes</exitCondition>
@@ -2427,7 +2427,6 @@ NetLogo 6.3.0
     </enumeratedValueSet>
     <enumeratedValueSet variable="penalty">
       <value value="-1"/>
-      <value value="-5"/>
       <value value="-10"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="learning-turtles">
