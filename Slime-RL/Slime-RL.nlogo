@@ -71,7 +71,7 @@ to setup                           ;; NO RL here (some RL variables are initiali
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "Manual-scatter-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter-moveaway-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params-nolearn ]
@@ -125,7 +125,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "Manual-scatter-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter-moveaway-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
