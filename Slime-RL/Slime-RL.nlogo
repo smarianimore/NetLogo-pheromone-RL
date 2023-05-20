@@ -12,6 +12,9 @@ globals [
   turtle-distribution
   filename              ;; the file where to report simulation results (automatically appended with a timestamp)
   g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
+  g-mean-distance-vector
+  g-std-distance-vector
+  g-min-distance-vector
   episode               ;; progressive number of the currently running episode (hence number of episodes run)
   is-there-cluster      ;; is there at least one cluser in the whole environment? (boolean)
   first-cluster
@@ -35,6 +38,7 @@ turtles-own [           ;; these variables are also inherited by learners
   cluster               ;; number of turtles within cluster-radius
   in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
   last-action
+  distance-vector
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -51,6 +55,7 @@ to setup                           ;; NO RL here (some RL variables are initiali
     set ticks-in-cluster 0
     set cluster 0
     set in-cluster false
+    set distance-vector []
     if label?
       [ set label who ] ]
 
@@ -71,7 +76,7 @@ to setup                           ;; NO RL here (some RL variables are initiali
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params-nolearn ]
@@ -88,6 +93,7 @@ to setup-learning                  ;; RL
     set ticks-in-cluster 0
     set cluster 0
     set in-cluster false
+    set distance-vector []
     if label?
       [ set label who ] ]
   set episode 1
@@ -118,6 +124,7 @@ to setup-learning                  ;; RL
     set cluster-gradient max-one-of neighbors [count turtles-on neighbors]
     set p-chemical 0
     set reward-list []
+    set distance-vector []
     if label?
       [ set label who ] ]
 
@@ -125,7 +132,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter-bothactions-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter02-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -141,12 +148,21 @@ to setup-learning                  ;; RL
     (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical] [move-toward-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
-    qlearningextension:reward [scatter01]                                            ;; the reward function used
+    qlearningextension:reward [scatter02]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
     qlearningextension:action-selection "e-greedy" [0.9 0.999]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
+    foreach [self] of turtles [
+      t -> if t != self [ set distance-vector lput precision distance t 2 distance-vector ]
+    ]
+    set g-mean-distance-vector []
+    set g-std-distance-vector []
+    set g-min-distance-vector []
+    set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
+    set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
+    set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
   ]
 
   setup-global-plot "Average reward per episode" "average reward" 0
@@ -270,6 +286,13 @@ to learn                                       ;; RL
         [ let n table:get learner-table last-action
           table:put learner-table last-action n + 1 ]
         [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <turtle-distribution> learner table!" ]
+
+      foreach [self] of turtles [
+        t -> if t != self [ set distance-vector lput precision distance t 2 distance-vector ]
+      ]
+      set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
+      set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
+      set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
     ]
 
     diffuse chemical diffuse-share
@@ -294,9 +317,13 @@ to learn                                       ;; RL
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
           set g-avg-rew avg? g-reward-list
+          let g-mean-distance precision mean g-mean-distance-vector 2
+          let g-std-distance precision standard-deviation g-std-distance-vector 2
+          let g-min-distance precision min g-min-distance-vector 2
           file-open filename
-          ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
-          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          ;;        Episode,                         Tick,                          First cluster tick                    Avg cluster size X tick,       Avg reward X episode,
+          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", " file-type g-mean-distance file-type ", " file-type g-std-distance file-type ", " file-type g-min-distance file-type ", "
+          ;; Actions distribution until tick (how many turtles choose each available action)
           print-table action-distribution ", "
           print-table-table turtle-distribution ", "
         ]
@@ -455,6 +482,23 @@ to-report scatter01  ;; incentivise scattering, not clustering! (essentially, th
   report rew
 end
 
+to-report scatter02  ;; added distance
+  let rew 0
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * penalty)
+        +
+        ((cluster / cluster-threshold) * (penalty))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward))
+        +
+        (reward) / precision standard-deviation distance-vector 2
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
 to-report isEndState
   ;if is-there-cluster = true [
   if (((ticks + 1) mod ticks-per-episode) = 0) [
@@ -473,6 +517,7 @@ to resetEpisode
 
   set reward-list []
   set ticks-in-cluster 0
+  set distance-vector []
   ;ask patch-here [ set chemical 0 ]
   ;ask [neighbors] of patch-here [ set chemical 0 ]
 
@@ -808,10 +853,11 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "scatter01"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "scatter02"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
-  ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
-  file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
+  ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,
+  file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, "
+  ;; Actions distribution until tick (how many turtles choose each available action)
   print-actions actions ", "
   print-turtle-actions sort Learners actions ", "
 end
@@ -1043,7 +1089,7 @@ cluster-radius
 cluster-radius
 1
 50
-5.0
+3.0
 1
 1
 NIL
@@ -1120,7 +1166,7 @@ INPUTBOX
 1519
 423
 episodes
-10000.0
+3.0
 1
 0
 Number
@@ -1230,7 +1276,7 @@ penalty
 penalty
 -100
 0
--1.0
+-2.0
 1
 1
 NIL
@@ -1245,7 +1291,7 @@ learning-turtles
 learning-turtles
 0
 100
-35.0
+50.0
 1
 1
 NIL
@@ -2446,7 +2492,7 @@ NetLogo 6.2.1
       <value value="0.01"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="scatter01-bothactions" repetitions="1" runMetricsEveryStep="false">
+  <experiment name="scatter02-bothactions-scatter" repetitions="1" runMetricsEveryStep="false">
     <setup>setup-learning</setup>
     <go>learn</go>
     <exitCondition>episode &gt; episodes</exitCondition>
@@ -2462,7 +2508,6 @@ NetLogo 6.2.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="discount-factor">
       <value value="0.9"/>
-      <value value="0.999"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-radius">
       <value value="3"/>
@@ -2513,7 +2558,6 @@ NetLogo 6.2.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="learning-rate">
       <value value="0.1"/>
-      <value value="0.01"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
