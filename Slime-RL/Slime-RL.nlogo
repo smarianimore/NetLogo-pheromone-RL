@@ -103,7 +103,7 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
-  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
+  set actions ["move-away-chemical" "random-walk" "drop-chemical" "move-toward-chemical"]
   ;set actions ["move-and-drop" "walk-and-drop"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
@@ -125,7 +125,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter-bothactions-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -138,7 +138,7 @@ to setup-learning                  ;; RL
     qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
-    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical] [move-toward-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
     qlearningextension:reward [scatter01]                                            ;; the reward function used
@@ -2446,7 +2446,7 @@ NetLogo 6.2.1
       <value value="0.01"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="scatter01" repetitions="1" runMetricsEveryStep="false">
+  <experiment name="scatter01-bothactions" repetitions="1" runMetricsEveryStep="false">
     <setup>setup-learning</setup>
     <go>learn</go>
     <exitCondition>episode &gt; episodes</exitCondition>
@@ -2458,7 +2458,6 @@ NetLogo 6.2.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-threshold">
       <value value="1"/>
-      <value value="5"/>
       <value value="10"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="discount-factor">
@@ -2467,7 +2466,6 @@ NetLogo 6.2.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-radius">
       <value value="3"/>
-      <value value="5"/>
       <value value="10"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="chemical-drop">
