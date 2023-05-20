@@ -71,7 +71,7 @@ to setup                           ;; NO RL here (some RL variables are initiali
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter-moveaway-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params-nolearn ]
@@ -103,7 +103,7 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
-  set actions ["move-away-chemical" "random-walk" "drop-chemical"]
+  set actions ["move-toward-chemical" "random-walk" "drop-chemical"]
   ;set actions ["move-and-drop" "walk-and-drop"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
@@ -125,7 +125,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter-moveaway-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter-01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -138,7 +138,7 @@ to setup-learning                  ;; RL
     qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
-    (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    (qlearningextension:actions [move-toward-chemical] [random-walk] [drop-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
     qlearningextension:reward [scatter01]                                            ;; the reward function used
@@ -1738,7 +1738,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.3.0
+NetLogo 6.2.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -2375,6 +2375,78 @@ NetLogo 6.3.0
     </enumeratedValueSet>
   </experiment>
   <experiment name="scatter01-move-away-action" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup-learning</setup>
+    <go>learn</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="1"/>
+      <value value="5"/>
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.9"/>
+      <value value="0.999"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="3"/>
+      <value value="5"/>
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.1"/>
+      <value value="0.01"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="scatter01" repetitions="1" runMetricsEveryStep="false">
     <setup>setup-learning</setup>
     <go>learn</go>
     <exitCondition>episode &gt; episodes</exitCondition>
