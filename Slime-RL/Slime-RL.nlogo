@@ -132,7 +132,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter02-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter03-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -316,6 +316,14 @@ to learn                                       ;; RL
     if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
+          ask Learners [
+            foreach [self] of turtles [
+              t -> if t != self [ set distance-vector lput precision distance t 2 distance-vector ]
+            ]
+            set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
+            set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
+            set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
+          ]
           set g-avg-rew avg? g-reward-list
           let g-mean-distance precision mean g-mean-distance-vector 2
           let g-std-distance precision standard-deviation g-std-distance-vector 2
@@ -1784,7 +1792,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
