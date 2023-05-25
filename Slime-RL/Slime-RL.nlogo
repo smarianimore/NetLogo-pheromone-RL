@@ -8,37 +8,41 @@ extensions[qlearningextension table]
 
 globals [
   actions
-  action-distribution   ;; table "action -> number of turtles choosing that action"
-  turtle-distribution
-  filename              ;; the file where to report simulation results (automatically appended with a timestamp)
-  g-reward-list         ;; list with one entry for each turtle, that is the average reward got so far by such turtle
-  g-mean-distance-vector
-  g-std-distance-vector
-  g-min-distance-vector
-  episode               ;; progressive number of the currently running episode (hence number of episodes run)
-  is-there-cluster      ;; is there at least one cluser in the whole environment? (boolean)
-  first-cluster
-  cluster-tick
+  action-distribution     ;; table "action -> number of turtles choosing that action"
+  turtle-distribution     ;; table "turtle -> [table action -> number of times action chosen]"
+  filename                ;; the file where to report simulation results (automatically appended with a timestamp)
+  g-reward-list           ;; list with one entry for each turtle, that is the average reward got so far by such turtle
+  g-std-reward-list       ;; list with one entry for each turtle, that is the standard deviation of the average reward got so far by such turtle
+  g-max-reward-list       ;; list with one entry for each turtle, that is the maximum reward got so far by such turtle
+  g-min-reward-list       ;; list with one entry for each turtle, that is the minimum reward got so far by such turtle
+  g-mean-distance-vector  ;; list with one entry for each turtle, that is the average distance from that turtle to any other turtle
+  g-std-distance-vector   ;; list with one entry for each turtle, that is the standard deviation of the average distance from that turtle to any other turtle
+  g-min-distance-vector   ;; list with one entry for each turtle, that is the minimum distance from that turtle to any other turtle
+  g-max-distance-vector   ;; list with one entry for each turtle, that is the maximum distance from that turtle to any other turtle
+  episode                 ;; progressive number of the currently running episode (hence number of episodes run)
+  is-there-cluster        ;; is there at least one cluser in the whole environment? (boolean)
+  first-cluster           ;; whether the cluster now formed is the first one of the episode
+  cluster-tick            ;; tick number relative to an episode when the first cluster of that episode is formed
 ]
 
-patches-own [chemical]  ;; amount of pheromone in the patch
+patches-own [chemical]    ;; amount of pheromone in the patch
 
-Breed[Learners Learner] ;; turtles that are learning (shown in red)
+Breed[Learners Learner]   ;; turtles that are learning (shown in red)
 
 Learners-own [
-  chemical-here         ;; whether there is pheromone on the patch-here (boolean)
-  chemical-gradient     ;; direction where gradient is stronger
-  cluster-gradient     ;; direction where cluster is stronger
-  p-chemical            ;; amount of pheromone on the patch-here
-  reward-list           ;; list of rewards got so far
+  chemical-here           ;; whether there is pheromone on the patch-here (boolean)
+  chemical-gradient       ;; direction where gradient is stronger
+  cluster-gradient        ;; direction where cluster is stronger
+  p-chemical              ;; amount of pheromone on the patch-here
+  reward-list             ;; list of rewards got so far
 ]
 
-turtles-own [           ;; these variables are also inherited by learners
-  ticks-in-cluster      ;; how many ticks the turtle has stayed within a cluster
-  cluster               ;; number of turtles within cluster-radius
-  in-cluster            ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
-  last-action
-  distance-vector
+turtles-own [             ;; these variables are also inherited by learners
+  ticks-in-cluster        ;; how many ticks the turtle has stayed within a cluster
+  cluster                 ;; number of turtles within cluster-radius
+  in-cluster              ;; whether the turtle is within a cluster (boolean = cluster > cluster-threshold)
+  last-action             ;; name of the action taken by the turtle in last tick
+  distance-vector         ;; list with one entry for each turtle, that is the distance from this turtle to that turtle
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -132,11 +136,14 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter03-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter02-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
   set g-reward-list []
+  set g-std-reward-list []
+  set g-max-reward-list []
+  set g-min-reward-list []
   set episode 1
 
   ask Learners [
@@ -160,9 +167,11 @@ to setup-learning                  ;; RL
     set g-mean-distance-vector []
     set g-std-distance-vector []
     set g-min-distance-vector []
+    set g-max-distance-vector []
     set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
     set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
     set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
+    set g-max-distance-vector lput precision max distance-vector 2 g-max-distance-vector
   ]
 
   setup-global-plot "Average reward per episode" "average reward" 0
@@ -287,12 +296,6 @@ to learn                                       ;; RL
           table:put learner-table last-action n + 1 ]
         [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <turtle-distribution> learner table!" ]
 
-      foreach [self] of turtles [
-        t -> if t != self [ set distance-vector lput precision distance t 2 distance-vector ]
-      ]
-      set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
-      set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
-      set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
     ]
 
     diffuse chemical diffuse-share
@@ -305,6 +308,9 @@ to learn                                       ;; RL
     log-ticks "average cluster size in # of turtles: " c-avg
 
     let g-avg-rew 0
+    let g-std-rew 0
+    let g-min-rew 0
+    let g-max-rew 0
 
     if is-there-cluster
       [ if first-cluster
@@ -323,14 +329,19 @@ to learn                                       ;; RL
             set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
             set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
             set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
+            set g-max-distance-vector lput precision max distance-vector 2 g-max-distance-vector
           ]
           set g-avg-rew avg? g-reward-list
+          set g-std-rew avg? g-std-reward-list
+          set g-min-rew avg? g-min-reward-list
+          set g-max-rew avg? g-max-reward-list
           let g-mean-distance precision mean g-mean-distance-vector 2
           let g-std-distance precision standard-deviation g-std-distance-vector 2
           let g-min-distance precision min g-min-distance-vector 2
+          let g-max-distance precision max g-max-distance-vector 2
           file-open filename
           ;;        Episode,                         Tick,                          First cluster tick                    Avg cluster size X tick,       Avg reward X episode,
-          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", " file-type g-mean-distance file-type ", " file-type g-std-distance file-type ", " file-type g-min-distance file-type ", "
+          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", " file-type g-std-rew file-type ", " file-type g-min-rew file-type ", " file-type g-max-rew file-type ", " file-type g-mean-distance file-type ", " file-type g-std-distance file-type ", " file-type g-min-distance file-type ", " file-type g-max-distance file-type ", "
           ;; Actions distribution until tick (how many turtles choose each available action)
           print-table action-distribution ", "
           print-table-table turtle-distribution ", "
@@ -344,6 +355,9 @@ to learn                                       ;; RL
       set first-cluster true
       set cluster-tick ticks-per-episode
       set g-avg-rew avg? g-reward-list
+      set g-std-rew avg? g-std-reward-list
+      set g-min-rew avg? g-min-reward-list
+      set g-max-rew avg? g-max-reward-list
       plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " g-avg-rew
       type "Actions distribution: " print action-distribution
@@ -351,6 +365,9 @@ to learn                                       ;; RL
       setup-action-distribution-table actions
       setup-turtle-distribution-table Learners
       set g-reward-list []
+      set g-std-reward-list []
+      set g-max-reward-list []
+      set g-min-reward-list []
       set episode episode + 1
 
       ask turtles [                                                        ;; reset non learners too
@@ -490,7 +507,7 @@ to-report scatter01  ;; incentivise scattering, not clustering! (essentially, th
   report rew
 end
 
-to-report scatter02  ;; added distance
+to-report scatter02  ;; added distance, std dev
   let rew 0
   ;if (ticks > 0)
     ;[
@@ -502,6 +519,23 @@ to-report scatter02  ;; added distance
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward))
         +
         (reward) / precision standard-deviation distance-vector 2
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter03  ;; added distance, min
+  let rew 0
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * penalty)
+        +
+        ((cluster / cluster-threshold) * (penalty))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward))
+        +
+        (reward) / precision min distance-vector 2
       set reward-list lput rew reward-list
    ;]
   report rew
@@ -864,7 +898,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "REWARD: " file-print "scatter02"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,
-  file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, "
+  file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Std dev reward X episode, " file-type "Min reward X episode, " file-type "Max reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, " file-type "Max distance, "
   ;; Actions distribution until tick (how many turtles choose each available action)
   print-actions actions ", "
   print-turtle-actions sort Learners actions ", "
@@ -2512,14 +2546,15 @@ NetLogo 6.3.0
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-threshold">
       <value value="1"/>
-      <value value="10"/>
+      <value value="5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="discount-factor">
       <value value="0.9"/>
+      <value value="0.999"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="cluster-radius">
-      <value value="3"/>
-      <value value="10"/>
+      <value value="1"/>
+      <value value="5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="chemical-drop">
       <value value="3"/>
@@ -2553,6 +2588,7 @@ NetLogo 6.3.0
       <value value="-10"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="learning-turtles">
+      <value value="25"/>
       <value value="50"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="reward">
@@ -2566,6 +2602,7 @@ NetLogo 6.3.0
     </enumeratedValueSet>
     <enumeratedValueSet variable="learning-rate">
       <value value="0.1"/>
+      <value value="0.001"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
