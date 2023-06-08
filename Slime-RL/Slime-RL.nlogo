@@ -136,7 +136,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter02-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter03-bothactions-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -155,7 +155,7 @@ to setup-learning                  ;; RL
     (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical] [move-toward-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
-    qlearningextension:reward [scatter02]                                            ;; the reward function used
+    qlearningextension:reward [scatter03]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
     qlearningextension:action-selection "e-greedy" [0.9 0.999]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -553,6 +553,9 @@ end
 to resetEpisode
   let avg-rew avg? reward-list
   set g-reward-list lput avg-rew g-reward-list
+  set g-std-reward-list lput precision standard-deviation reward-list 2 g-std-reward-list
+  set g-min-reward-list lput precision min reward-list 2 g-min-reward-list
+  set g-max-reward-list lput precision max reward-list 2 g-max-reward-list
 
   ;set-current-plot-pen (word who)
   ;plot avg-rew
@@ -895,7 +898,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "scatter02"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "scatter03"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,
   file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Std dev reward X episode, " file-type "Min reward X episode, " file-type "Max reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, " file-type "Max distance, "
@@ -2535,6 +2538,77 @@ NetLogo 6.3.0
     </enumeratedValueSet>
   </experiment>
   <experiment name="scatter02-bothactions-scatter" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup-learning</setup>
+    <go>learn</go>
+    <exitCondition>episode &gt; episodes</exitCondition>
+    <enumeratedValueSet variable="sniff-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sniff-threshold">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-threshold">
+      <value value="1"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="discount-factor">
+      <value value="0.9"/>
+      <value value="0.999"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cluster-radius">
+      <value value="1"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="chemical-drop">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="label?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wiggle-angle">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="evaporation-rate">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ticks-per-episode">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="diffuse-share">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="print-every">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="episodes">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="penalty">
+      <value value="-1"/>
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-turtles">
+      <value value="25"/>
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="look-ahead">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="log-data?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.1"/>
+      <value value="0.001"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="scatter03-bothactions-scatter" repetitions="1" runMetricsEveryStep="false">
     <setup>setup-learning</setup>
     <go>learn</go>
     <exitCondition>episode &gt; episodes</exitCondition>
