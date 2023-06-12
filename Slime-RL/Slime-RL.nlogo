@@ -553,9 +553,10 @@ end
 to resetEpisode
   let avg-rew avg? reward-list
   set g-reward-list lput avg-rew g-reward-list
-  set g-std-reward-list lput precision standard-deviation reward-list 2 g-std-reward-list
-  set g-min-reward-list lput precision min reward-list 2 g-min-reward-list
-  set g-max-reward-list lput precision max reward-list 2 g-max-reward-list
+  if length reward-list > 0
+    [ set g-std-reward-list lput precision standard-deviation reward-list 2 g-std-reward-list
+      set g-min-reward-list lput precision min reward-list 2 g-min-reward-list
+      set g-max-reward-list lput precision max reward-list 2 g-max-reward-list ]
 
   ;set-current-plot-pen (word who)
   ;plot avg-rew
