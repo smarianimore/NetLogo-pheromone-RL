@@ -535,7 +535,7 @@ to-report scatter03  ;; added distance, min
         +
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward))
         +
-        (reward) / precision min distance-vector 2
+        (reward) * precision min distance-vector 2
       set reward-list lput rew reward-list
    ;]
   report rew
