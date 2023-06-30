@@ -2749,7 +2749,7 @@ NetLogo 6.3.0
       <value value="500"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="episodes">
-      <value value="10000"/>
+      <value value="20000"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="penalty">
       <value value="-1"/>
