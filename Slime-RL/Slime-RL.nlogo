@@ -1384,7 +1384,7 @@ SWITCH
 561
 switch-reward
 switch-reward
-0
+1
 1
 -1000
 
