@@ -1202,7 +1202,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-1.0
+49.0
 1
 1
 NIL
