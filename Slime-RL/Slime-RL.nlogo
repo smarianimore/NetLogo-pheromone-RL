@@ -72,7 +72,11 @@ to setup                           ;; NO RL here (some RL variables are initiali
   reset-ticks
   setup-global-plot "Average cluster size in # of turtles within cluster-radius" "# of turtles" 0
 
-  set actions ["random-walk" "move-toward-chemical" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
+  ;set actions ["move-and-drop" "walk-and-drop"]
+  ;set actions ["away-and-drop" "stand-still"]
+  set actions ["away-and-drop" "drop-chemical"]
+  ;set actions ["away-and-drop" "walk-and-drop"]
+  ;set actions ["random-walk" "move-toward-chemical" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
   type "Actions distribution: " print action-distribution
 
@@ -80,10 +84,26 @@ to setup                           ;; NO RL here (some RL variables are initiali
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter02-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "BS-scatter01-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params-nolearn ]
+
+  ask turtles [
+    if not (breed = Learners) [
+      foreach [self] of turtles [
+        t -> if t != self [ set distance-vector lput precision distance t 2 distance-vector ]
+      ]
+    set g-mean-distance-vector []
+    set g-std-distance-vector []
+    set g-min-distance-vector []
+    set g-max-distance-vector []
+    set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
+    set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
+    set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
+    set g-max-distance-vector lput precision max distance-vector 2 g-max-distance-vector
+    ]
+  ]
 
 end
 
@@ -100,9 +120,9 @@ to setup-learning                  ;; RL
     set distance-vector []
     if label?
       [ set label who ] ]
-  set episode 1
 
   ask patches [ set chemical 0 ]
+  set episode 1
   set is-there-cluster false
   set first-cluster true
   set cluster-tick ticks-per-episode
@@ -145,7 +165,6 @@ to setup-learning                  ;; RL
   set g-std-reward-list []
   set g-max-reward-list []
   set g-min-reward-list []
-  set episode 1
 
   ask Learners [
     ;qlearningextension:state-def ["cluster-gradient" "in-cluster"]
@@ -186,11 +205,15 @@ end
 to go                                              ;; NO RL
   if episode <= episodes                        ;; = learning episodes not finished
   [ ask turtles
-  [ check-cluster
-    ;plot-individual
-    ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
-      [ move-and-drop]
-      [ walk-and-drop ]
+    [ check-cluster
+
+    ifelse scatter?
+      [ ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
+          [ away-and-drop ]
+          [ drop-chemical ] ]
+      [ ifelse chemical > sniff-threshold              ;; ignore pheromone unless there's enough here
+          [ move-and-drop ]
+          [ walk-and-drop ] ]
     ;drop-chemical                                  ;; drop chemical onto patch
 
     ifelse table:has-key? action-distribution last-action
@@ -222,10 +245,22 @@ to go                                              ;; NO RL
   if log-data?
       [ if (((ticks + 1) mod print-every) = 0)                       ;; log experiment data
         [
-          let g-avg-rew 0
+          ask turtles [
+              foreach [self] of turtles [
+                t -> if t != self [ set distance-vector lput precision distance t 2 distance-vector ]
+              ]
+              set g-mean-distance-vector lput precision mean distance-vector 2 g-mean-distance-vector
+              set g-std-distance-vector lput precision standard-deviation distance-vector 2 g-std-distance-vector
+              set g-min-distance-vector lput precision min distance-vector 2 g-min-distance-vector
+              set g-max-distance-vector lput precision max distance-vector 2 g-max-distance-vector
+          ]
+          let g-mean-distance precision mean g-mean-distance-vector 2
+          let g-std-distance precision standard-deviation g-std-distance-vector 2
+          let g-min-distance precision min g-min-distance-vector 2
+          let g-max-distance precision max g-max-distance-vector 2
           file-open filename
           ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
-          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-avg-rew file-type ", "
+          file-type episode file-type ", " file-type ticks file-type ", " file-type cluster-tick file-type ", " file-type c-avg file-type ", " file-type g-mean-distance file-type ", " file-type g-std-distance file-type ", " file-type g-min-distance file-type ", " file-type g-max-distance file-type ", "
           print-table action-distribution ", "
           print-table-table turtle-distribution ", "
         ]
@@ -237,7 +272,6 @@ to go                                              ;; NO RL
       set is-there-cluster false                                           ;; reset state variables
       set first-cluster true
       set cluster-tick ticks-per-episode
-      let g-avg-rew 0
       ;plot-global "Average reward per episode" "average reward" g-avg-rew
       log-episodes "average reward per episode: " 0
       type "Actions distribution: " print action-distribution
@@ -588,8 +622,8 @@ end
 ;;;;;;;;;;;;;;;;
 
 to move-toward-cluster  ;; turtle procedure
-  if breed = Learners
-    [ set last-action "move-toward-cluster" ]
+  ;if breed = Learners
+    set last-action "move-toward-cluster"
   let ahead count-from-me look-ahead 0
   let myright count-from-me look-ahead 1
   let myleft count-from-me look-ahead -1
@@ -601,8 +635,8 @@ to move-toward-cluster  ;; turtle procedure
 end
 
 to move-toward-chemical  ;; turtle procedure
-  if breed = Learners
-    [ set last-action "move-toward-chemical" ]
+  ;if breed = Learners
+    set last-action "move-toward-chemical"
   ;; examine the patch ahead of you and two nearby patches;
   ;; turn in the direction of greatest chemical
   let ahead [chemical] of patch-ahead look-ahead
@@ -616,8 +650,8 @@ to move-toward-chemical  ;; turtle procedure
 end
 
 to move-away-chemical  ;; turtle procedure
-  if breed = Learners
-    [ set last-action "move-away-chemical" ]
+  ;if breed = Learners
+    set last-action "move-away-chemical"
   ;; examine the patch ahead of you and two nearby patches;
   ;; turn in the direction of greatest chemical
   let ahead [chemical] of patch-ahead look-ahead
@@ -632,8 +666,8 @@ to move-away-chemical  ;; turtle procedure
 end
 
 to random-walk  ;; turtle procedure
-  if breed = Learners
-    [ set last-action "random-walk" ]
+  ;if breed = Learners
+    set last-action "random-walk"
   ifelse (random-float 1) > 0.5
     [ rt random-float wiggle-angle ]
     [ lt random-float wiggle-angle ]
@@ -641,14 +675,14 @@ to random-walk  ;; turtle procedure
 end
 
 to drop-chemical  ;; turtle procedure
-  if breed = Learners
-    [ set last-action "drop-chemical" ]
+  ;if breed = Learners
+    set last-action "drop-chemical"
   set chemical chemical + chemical-drop
 end
 
 to dont-drop-chemical  ;; turtle procedure
-  if breed = Learners
-    [ set last-action "dont-drop-chemical" ]
+  ;if breed = Learners
+    set last-action "dont-drop-chemical"
 
 end
 
@@ -666,6 +700,21 @@ to move-and-drop  ;; turtle procedure (can't reuse code due to last-action savin
   set chemical chemical + chemical-drop
 end
 
+to away-and-drop  ;; turtle procedure (can't reuse code due to last-action saving (would compromise tracking of last actions performed!))
+  ;if breed = Learners
+     set last-action "away-and-drop"
+  let ahead [chemical] of patch-ahead look-ahead
+  let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
+  let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ lt sniff-angle ]
+  [ ifelse myleft >= ahead
+    [ rt sniff-angle ]
+    [ lt 180 ] ]
+  fd 1                    ;; default don't turn
+  set chemical chemical + chemical-drop
+end
+
 to walk-and-drop  ;; turtle procedure (can't reuse code due to last-action saving (would compromise tracking of last actions performed!))
   ;if breed = Learners
      set last-action "walk-and-drop"
@@ -677,8 +726,8 @@ to walk-and-drop  ;; turtle procedure (can't reuse code due to last-action savin
 end
 
 to stand-still
-  if breed = Learners
-    [ set last-action "stand-still" ]
+  ;if breed = Learners
+    set last-action "stand-still"
   ;ifelse (random-float 1) > 0.5
     ;[ rt random-float wiggle-angle ]
     ;[ lt random-float wiggle-angle ]
@@ -951,7 +1000,7 @@ to log-params-nolearn  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SP
   ;file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,     Actions distribution until tick (how many turtles choose each available action)
-  file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, "
+  file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, " file-type "Max distance, "
   print-actions actions ", "
   print-turtle-actions sort turtles actions ", "
 end
@@ -994,8 +1043,8 @@ population
 population
 0
 1000
-0.0
-10
+50.0
+5
 1
 NIL
 HORIZONTAL
@@ -1183,10 +1232,10 @@ true
 PENS
 
 INPUTBOX
-29
-462
-178
-522
+28
+556
+177
+616
 print-every
 500.0
 1
@@ -1367,10 +1416,10 @@ learning-rate) 0 = only predefined policy (learns nothing), 1 = only latest rewa
 1
 
 SWITCH
-47
-426
-163
-459
+46
+520
+162
+553
 log-data?
 log-data?
 0
@@ -1385,6 +1434,17 @@ SWITCH
 switch-reward
 switch-reward
 1
+1
+-1000
+
+SWITCH
+44
+401
+160
+434
+scatter?
+scatter?
+0
 1
 -1000
 
