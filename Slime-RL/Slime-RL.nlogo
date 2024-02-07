@@ -157,7 +157,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "BS-scatter01-noaction-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "manual-cluster-rew8-mixed35-randomdroponly-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -176,10 +176,10 @@ to setup-learning                  ;; RL
     (qlearningextension:actions [random-walk] [drop-chemical] [move-toward-chemical])
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
-    qlearningextension:reward [scatter01]                                            ;; the reward function used
+    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
-    qlearningextension:action-selection "e-greedy" [0.9 0.999]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
     foreach [self] of turtles [
@@ -216,15 +216,15 @@ to go                                              ;; NO RL
           [ walk-and-drop ] ]
     ;drop-chemical                                  ;; drop chemical onto patch
 
-    ifelse table:has-key? action-distribution last-action
+    if table:has-key? action-distribution last-action
       [ let n table:get action-distribution last-action
         table:put action-distribution last-action n + 1 ]
-      [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <action-distribution> table!" ]
+      ;[ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <action-distribution> table!" ]
     let turtles-table table:get turtle-distribution who
-    ifelse table:has-key? turtles-table last-action
+    if table:has-key? turtles-table last-action
       [ let n table:get turtles-table last-action
         table:put turtles-table last-action n + 1 ]
-      [ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <turtle-distribution> table!" ]
+      ;[ type "WARNING: " type who type " choose action " type last-action print " that is NOT in <turtle-distribution> table!" ]
   ]
 
   diffuse chemical diffuse-share                   ;; diffuse chemical to neighboring patches
@@ -304,8 +304,11 @@ to learn                                       ;; RL
         [ check-cluster
         ifelse chemical > sniff-threshold
           [ move-toward-chemical ]
-          [ random-walk ]
-        drop-chemical ]
+            ;drop-chemical ]
+          [ random-walk ;]
+            drop-chemical ]
+        ;drop-chemical ]
+      ]
     ]
 
     ask Learners                               ;; handle learning slimes
@@ -955,13 +958,13 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.999 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.9985 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
   ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "scatter01"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,
   file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Std dev reward X episode, " file-type "Min reward X episode, " file-type "Max reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, " file-type "Max distance, "
@@ -1167,7 +1170,7 @@ evaporation-rate
 evaporation-rate
 0
 1
-0.95
+0.9
 0.05
 1
 NIL
@@ -1197,7 +1200,7 @@ cluster-radius
 cluster-radius
 1
 50
-3.0
+5.0
 1
 1
 NIL
@@ -1251,7 +1254,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-49.0
+25.0
 1
 1
 NIL
@@ -1274,7 +1277,7 @@ INPUTBOX
 1519
 423
 episodes
-2.0
+10000.0
 1
 0
 Number
@@ -1339,7 +1342,7 @@ learning-rate
 learning-rate
 0
 1
-0.05
+0.1
 0.05
 1
 NIL
@@ -1354,7 +1357,7 @@ discount-factor
 discount-factor
 0
 1
-0.95
+0.9
 0.05
 1
 NIL
@@ -1384,7 +1387,7 @@ penalty
 penalty
 -100
 0
--2.0
+-1.0
 1
 1
 NIL
@@ -1399,7 +1402,7 @@ learning-turtles
 learning-turtles
 0
 100
-50.0
+15.0
 1
 1
 NIL
@@ -1444,7 +1447,7 @@ SWITCH
 434
 scatter?
 scatter?
-0
+1
 1
 -1000
 
