@@ -157,7 +157,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "manual-cluster-rew8-mixed35-randomdroponly-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "manual-cluster-rew8-mixed15-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -305,10 +305,10 @@ to learn                                       ;; RL
         ifelse chemical > sniff-threshold
           [ move-toward-chemical ]
             ;drop-chemical ]
-          [ random-walk ;]
-            drop-chemical ]
-        ;drop-chemical ]
-      ]
+          [ random-walk ]
+            ;drop-chemical ]
+        drop-chemical ]
+      ;]
     ]
 
     ask Learners                               ;; handle learning slimes
@@ -1046,7 +1046,7 @@ population
 population
 0
 1000
-50.0
+15.0
 5
 1
 NIL
@@ -1277,7 +1277,7 @@ INPUTBOX
 1519
 423
 episodes
-10000.0
+11000.0
 1
 0
 Number
@@ -1402,7 +1402,7 @@ learning-turtles
 learning-turtles
 0
 100
-15.0
+40.0
 1
 1
 NIL
