@@ -134,7 +134,8 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
   ;set actions ["move-away-chemical" "random-walk" "drop-chemical" "move-toward-chemical"]
-  set actions ["random-walk" "drop-chemical" "move-toward-chemical"]
+  set actions ["move-away-chemical" "random-walk" "drop-chemical"]
+  ;set actions ["random-walk" "drop-chemical" "move-toward-chemical"]
   ;set actions ["move-and-drop" "walk-and-drop"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
   setup-action-distribution-table actions
@@ -157,7 +158,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "manual-cluster-rew8-mixed15-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "manual_scattering07_turn90-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -173,13 +174,14 @@ to setup-learning                  ;; RL
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
     ;(qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical] [move-toward-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    (qlearningextension:actions [random-walk] [drop-chemical] [move-toward-chemical])
+    (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical])
+    ;(qlearningextension:actions [random-walk] [drop-chemical] [move-toward-chemical])
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
-    qlearningextension:reward [rewardFunc8]                                            ;; the reward function used
+    qlearningextension:reward [scatter07]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
-    qlearningextension:action-selection "e-greedy" [0.9 0.9985]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
+    qlearningextension:action-selection "e-greedy" [0.9 0.9993]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
     qlearningextension:learning-rate learning-rate
     qlearningextension:discount-factor discount-factor
     foreach [self] of turtles [
@@ -546,7 +548,24 @@ to-report scatter01  ;; incentivise scattering, not clustering! (essentially, th
   report rew
 end
 
-to-report scatter02  ;; added distance, std dev
+to-report scatter02  ;; explicitly reward no clusters
+  let rew cluster
+  ;if (ticks > 0)
+    ;[
+  ifelse in-cluster
+    [ set rew
+        ((ticks-in-cluster / ticks-per-episode) * penalty)
+        +
+        ((cluster / cluster-threshold) * (0 - (penalty ^ 2)))
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * reward) ]
+    [ set rew reward ]
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter03  ;; added distance, std dev
   let rew 0
   ;if (ticks > 0)
     ;[
@@ -563,7 +582,7 @@ to-report scatter02  ;; added distance, std dev
   report rew
 end
 
-to-report scatter03  ;; added distance, min
+to-report scatter04  ;; added distance, min
   let rew 0
   ;if (ticks > 0)
     ;[
@@ -574,13 +593,64 @@ to-report scatter03  ;; added distance, min
         +
         (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward))
         +
-        (reward) * precision min distance-vector 2
+        precision min distance-vector 2 * reward
       set reward-list lput rew reward-list
    ;]
   report rew
 end
 
-to-report adaptive01
+to-report scatter05  ;; amplifying reward of min distance
+  let rew 0
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * penalty)
+        +
+        ((cluster / cluster-threshold) * penalty)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward))
+        +
+        (precision min distance-vector 2) ^ 3 * reward
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter06  ;; amplifying reward of time out cluster
+  let rew 0
+  ;if (ticks > 0)
+    ;[
+    set rew
+        ((ticks-in-cluster / ticks-per-episode) * penalty)
+        +
+        ((cluster / cluster-threshold) * penalty)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward) ^ 2)
+        +
+        (precision min distance-vector 2) ^ 3 * reward
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report scatter07  ;; huge penalty for staying in cluster
+  let rew 0
+  ;if (ticks > 0)
+    ;[
+    set rew
+        (ticks-in-cluster / ticks-per-episode) * (0 - reward)
+        +
+        ((cluster / cluster-threshold) * penalty)
+        +
+        (((ticks-per-episode - ticks-in-cluster) / ticks-per-episode) * (reward) ^ 2)
+        +
+        (precision min distance-vector 2) ^ 3 * reward
+      set reward-list lput rew reward-list
+   ;]
+  report rew
+end
+
+to-report adaptive01  ;; toggle reward scheme mid-learning NB: should reset also exploration rate,HOW TO??
   ifelse episode < (episodes / 2)
     [ report rewardFunc8 ]
     [ report scatter01 ]
@@ -661,9 +731,9 @@ to move-away-chemical  ;; turtle procedure
   let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
   let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
   ifelse (myright >= ahead) and (myright >= myleft)
-  [ lt sniff-angle ]
+  [ lt 90 ]
   [ ifelse myleft >= ahead
-    [ rt sniff-angle ]
+    [ rt 90 ]
     [ lt 180 ] ]
   fd 1                    ;; default don't turn
 end
@@ -710,9 +780,9 @@ to away-and-drop  ;; turtle procedure (can't reuse code due to last-action savin
   let myright [chemical] of patch-right-and-ahead sniff-angle look-ahead
   let myleft [chemical] of patch-left-and-ahead sniff-angle look-ahead
   ifelse (myright >= ahead) and (myright >= myleft)
-  [ lt sniff-angle ]
+  [ lt 90 ]
   [ ifelse myleft >= ahead
-    [ rt sniff-angle ]
+    [ rt 90 ]
     [ lt 180 ] ]
   fd 1                    ;; default don't turn
   set chemical chemical + chemical-drop
@@ -958,13 +1028,13 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   file-type "  discount-factor " file-print discount-factor
   file-type "  reward " file-print reward
   file-type "  penalty " file-print penalty
-  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.9985 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "  e-greedy " file-type 0.9 file-type " " file-type 0.9993 file-print ""                                     ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "ACTION SPACE: "
   print-actions actions " " file-print ""
   ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "rewardFunc8"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "scatter07"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,
   file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Std dev reward X episode, " file-type "Min reward X episode, " file-type "Max reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, " file-type "Max distance, "
@@ -1046,7 +1116,7 @@ population
 population
 0
 1000
-15.0
+0.0
 5
 1
 NIL
@@ -1061,7 +1131,7 @@ sniff-threshold
 sniff-threshold
 0.1
 5.0
-0.9
+0.1
 0.1
 1
 NIL
@@ -1155,7 +1225,7 @@ diffuse-share
 diffuse-share
 0
 1
-1.0
+0.9
 0.1
 1
 NIL
@@ -1170,8 +1240,8 @@ evaporation-rate
 evaporation-rate
 0
 1
-0.9
-0.05
+0.97
+0.01
 1
 NIL
 HORIZONTAL
@@ -1254,7 +1324,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-25.0
+2.0
 1
 1
 NIL
@@ -1277,7 +1347,7 @@ INPUTBOX
 1519
 423
 episodes
-11000.0
+10000.0
 1
 0
 Number
@@ -1402,7 +1472,7 @@ learning-turtles
 learning-turtles
 0
 100
-40.0
+50.0
 1
 1
 NIL
