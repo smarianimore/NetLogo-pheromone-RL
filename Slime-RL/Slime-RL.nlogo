@@ -133,8 +133,9 @@ to setup-learning                  ;; RL
   ;set actions ["random-walk" "stand-still"]
   ;set actions ["random-walk" "move-toward-cluster"]
   ;set actions ["random-walk" "stand-still" "move-toward-cluster"]
-  ;set actions ["move-away-chemical" "random-walk" "drop-chemical" "move-toward-chemical"]
-  set actions ["move-away-chemical" "random-walk" "drop-chemical"]
+  set actions ["move-away-chemical" "random-walk" "drop-chemical" "move-toward-chemical"]
+  ;set actions ["move-away-chemical" "random-walk" "drop-chemical"]
+  ;set actions ["away-and-drop" "walk-and-drop" "drop-chemical"]
   ;set actions ["random-walk" "drop-chemical" "move-toward-chemical"]
   ;set actions ["move-and-drop" "walk-and-drop"]
   ;set actions ["move-toward-chemical" "random-walk" "move-and-drop" "walk-and-drop" "drop-chemical"]  ;; NB MODIFY ACTIONS LIST HERE
@@ -158,7 +159,7 @@ to setup-learning                  ;; RL
   type "Turtles distribution: " print turtle-distribution
 
   if log-data?
-    [ set filename (word "manual_scattering07_turn90-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
+    [ set filename (word "manual_switch_reward_turn90-" date-and-time ".txt")  ;; NB MODIFY HERE EXPERIMENT NAME
       print filename
       file-open filename
       log-params ]
@@ -173,12 +174,13 @@ to setup-learning                  ;; RL
     qlearningextension:state-def ["chemical-gradient"] ;; reporter                    ;; reporter could report variables that the agent does not own
     ;qlearningextension:state-def ["chemical-here" "in-cluster"]                        ;; WARNING non-boolean state variables make the Q-table explode in size, hence Netlogo crashes 'cause out of memory!
     ;(qlearningextension:actions [random-walk] [stand-still])
-    ;(qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical] [move-toward-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
-    (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical])
+    (qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical] [move-toward-chemical]) ;; admissible actions to be learned in policy WARNING: be sure to not use explicitly these actions in learners!
+    ;(qlearningextension:actions [move-away-chemical] [random-walk] [drop-chemical])
+    ;(qlearningextension:actions [away-and-drop] [walk-and-drop] [drop-chemical])
     ;(qlearningextension:actions [random-walk] [drop-chemical] [move-toward-chemical])
     ;(qlearningextension:actions [move-toward-chemical] [random-walk] [move-and-drop] [walk-and-drop] [drop-chemical]) ;; NB MODIFY ACTIONS LIST ACCORDING TO "actions" GLOBAL VARIABLE
     ;(qlearningextension:actions [move-and-drop] [walk-and-drop])
-    qlearningextension:reward [scatter07]                                            ;; the reward function used
+    qlearningextension:reward [adaptive01]                                            ;; the reward function used
     qlearningextension:end-episode [isEndState] resetEpisode                           ;; the termination condition for an episode and the procedure to call to reset the environment for the next episode
     ; 10000 -> .9 .999 / .9993, 5000, 3000 episodes -> .9 .9985, 1500 ep -> .9 .9965, 500 ep -> .9 .985
     qlearningextension:action-selection "e-greedy" [0.9 0.9993]                          ;; 1st param is chance of random action, 2nd parameter is decay factor applied (after each episode the 1st parameter is updated, the new value corresponding to the current value multiplied by the 2nd param)
@@ -653,7 +655,7 @@ end
 to-report adaptive01  ;; toggle reward scheme mid-learning NB: should reset also exploration rate,HOW TO??
   ifelse episode < (episodes / 2)
     [ report rewardFunc8 ]
-    [ report scatter01 ]
+    [ report scatter07 ]
 end
 
 to-report isEndState
@@ -662,7 +664,7 @@ to-report isEndState
     ;set is-there-cluster false
     if switch-reward and episode = round (episodes / 2)
     [
-      qlearningextension:action-selection "e-greedy" [0.9 0.999]
+      qlearningextension:action-selection "e-greedy" [0.9 0.993]
       print "Switched reward function!"
     ]
     report true
@@ -1034,7 +1036,7 @@ to log-params  ;; NB explicitly modify lines "e-greedy", "OBSERVATION SPACE", an
   ;file-type "OBSERVATION SPACE: " file-type "cluster-gradient " file-print "in-cluster"
   ;file-type "OBSERVATION SPACE: " file-type "chemical-gradient " file-print "in-cluster"                                  ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-type "OBSERVATION SPACE: " file-print "chemical-gradient "
-  file-type "REWARD: " file-print "scatter07"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
+  file-type "REWARD: " file-print "adaptive01"                                                                       ;; NB: CHANGE ACCORDING TO ACTUAL CODE!
   file-print "--------------------------------------------------------------------------------"
   ;;        Episode,                         Tick,                          Avg cluster size X tick,       Avg reward X episode,
   file-type "Episode, " file-type "Tick, " file-type "First cluster tick, " file-type "Avg cluster size X tick, " file-type "Avg reward X episode, " file-type "Std dev reward X episode, " file-type "Min reward X episode, " file-type "Max reward X episode, " file-type "Avg distance, " file-type "Std dev distance, " file-type "Min distance, " file-type "Max distance, "
@@ -1240,7 +1242,7 @@ evaporation-rate
 evaporation-rate
 0
 1
-0.97
+0.95
 0.01
 1
 NIL
@@ -1324,7 +1326,7 @@ cluster-threshold
 cluster-threshold
 0
 250
-2.0
+25.0
 1
 1
 NIL
@@ -1472,7 +1474,7 @@ learning-turtles
 learning-turtles
 0
 100
-50.0
+30.0
 1
 1
 NIL
@@ -1506,7 +1508,7 @@ SWITCH
 561
 switch-reward
 switch-reward
-1
+0
 1
 -1000
 
